@@ -52,6 +52,27 @@ Java 21、Spring Boot 3.5.0、Gradleを使用したマルチモジュールア�
 ./gradlew generateProto
 ```
 
+### 品質管理コマンド
+```bash
+# テストカバレッジレポート生成（個別モジュール）
+./gradlew jacocoTestReport
+
+# 統合カバレッジレポート生成（全モジュール）
+./gradlew jacocoRootReport
+
+# テスト + カバレッジレポート統合実行
+./gradlew clean test jacocoRootReport
+
+# SonarQube静的解析実行（SonarQubeサーバー設定必要）
+./gradlew sonar
+
+# 品質チェック（テスト + カバレッジ検証）
+./gradlew check
+
+# テストカバレッジの確認
+./gradlew jacocoTestCoverageVerification
+```
+
 ## プロジェクト構造
 
 ### 現在の実装（フェーズ1）

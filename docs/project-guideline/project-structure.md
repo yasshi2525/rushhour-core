@@ -481,6 +481,13 @@ cd apps/web-client && npm run dev
 # テスト実行
 ./gradlew test
 ./gradlew :services:pathfinding-service:test
+
+# 品質管理コマンド
+./gradlew jacocoTestReport          # テストカバレッジレポート生成
+./gradlew jacocoRootReport          # 統合カバレッジレポート生成
+./gradlew clean test jacocoRootReport # テスト + カバレッジ統合実行
+./gradlew sonar                     # SonarQube静的解析
+./gradlew check                     # 品質チェック（テスト + カバレッジ検証）
 ```
 
 ### 本番デプロイ
@@ -496,6 +503,30 @@ cd infrastructure/terraform/aws
 terraform init && terraform apply
 ```
 
+## 品質管理・継続的インテグレーション
+
+### 品質メトリクス
+- **Jacoco**: テストカバレッジ測定・レポート生成
+- **SonarQube**: 静的解析・品質ゲート
+- **GitHub Actions**: 自動CI/CD・進捗トラッキング
+
+### 品質基準
+- **テストカバレッジ**: 最低30%（段階的に向上）
+- **品質スコア**: カバレッジ60% + テスト成功率40%
+- **自動チェック**: PR作成時・毎日9時の進捗レポート
+
+### カバレッジレポート出力先
+```
+build/reports/jacoco/jacocoRootReport/  # 統合HTMLレポート
+**/build/reports/jacoco/test/           # 各モジュールのレポート
+```
+
+### SonarQube設定
+- **プロジェクトキー**: rushhour-core
+- **除外対象**: proto生成コード、buildディレクトリ
+- **Java**: バージョン21対応
+- **エンコーディング**: UTF-8
+
 ## 主要な特徴
 
 1. **段階的移行対応**: モノリスからマイクロサービスへの段階的移行
@@ -504,5 +535,6 @@ terraform init && terraform apply
 4. **監視・デバッグ**: Jaeger、Prometheus、Grafanaの統合
 5. **負荷テスト**: JMeterとGatlingによる性能テスト
 6. **インフラコード**: Kubernetes、Terraformによるインフラ管理
+7. **品質管理**: Jacoco、SonarQube、GitHub Actionsによる自動品質チェック
 
-この構成により、文書で分析された分散処理戦略を実装しながら、保守性とスケーラビリティを確保できます。
+この構成により、文書で分析された分散処理戦略を実装しながら、保守性とスケーラビリティ、そして継続的な品質向上を確保できます。
