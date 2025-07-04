@@ -1,15 +1,44 @@
-apply plugin: 'org.springframework.boot'
+plugins {
+    id 'org.springframework.boot'
+    id 'com.google.protobuf'
+}
 
 dependencies {
-	compileOnly('org.projectlombok:lombok')
-	annotationProcessor('org.projectlombok:lombok')
-	
-	testCompileOnly('org.projectlombok:lombok')
-	testAnnotationProcessor('org.projectlombok:lombok')
-
 	implementation 'org.springframework.boot:spring-boot-starter'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+	implementation "io.grpc:grpc-netty-shaded:1.58.0"
+	implementation "io.grpc:grpc-protobuf:1.58.0"
+	implementation "io.grpc:grpc-stub:1.58.0"
+
+    implementation project(':packages:shared-models')
+}
+
+sourceSets {
+    main {
+        proto {
+            srcDir '../proto'
+        }
+    }
+}
+
+protobuf {
+    protoc {
+        artifact = "com.google.protobuf:protoc:3.25.1"
+    }
+    plugins {
+        grpc {
+            artifact = "io.grpc:protoc-gen-grpc-java:1.58.0"
+        }
+    }
+    generateProtoTasks {
+        all().each { task ->
+            task.plugins {
+                grpc {}
+            }
+        }
+    }
 }
 
 tasks.named('test') {

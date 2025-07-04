@@ -1,0 +1,20 @@
+
+syntax = "proto3";
+
+package rushhourgame;
+
+option java_package = "net.rushhourgame.proto";
+option java_multiple_files = true;
+
+message PathRequest {
+  string start_node = 1;
+  string end_node = 2;
+}
+
+message PathResponse {
+  repeated string nodes = 1;
+}
+
+service PathfindingService {
+  rpc FindPath(PathRequest) returns (PathResponse);
+}

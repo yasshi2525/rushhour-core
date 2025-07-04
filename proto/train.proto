@@ -1,0 +1,15 @@
+
+syntax = "proto3";
+
+package rushhourgame;
+
+option java_package = "net.rushhourgame.proto";
+option java_multiple_files = true;
+
+message Train {
+  string id = 1;
+  double x = 2;
+  double y = 3;
+  double speed = 4;
+  string route_id = 5;
+}
