@@ -215,7 +215,6 @@ interface Milestone {
 ### 自動進捗収集
 
 [.github/workflows/progress-tracker.yml](/.github/workflows/progress-tracker.yml)
-```yaml
 
 ## 6. 開発計画とロードマップ
 
