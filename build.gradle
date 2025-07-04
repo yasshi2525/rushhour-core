@@ -1,34 +1,45 @@
 plugins {
 	id 'java'
-	id 'org.springframework.boot' version '3.5.0'
-	id 'io.spring.dependency-management' version '1.1.7'
+    id 'org.springframework.boot' version '3.5.0' apply false
+    id 'io.spring.dependency-management' version '1.1.7' apply false
 }
 
-group = 'net.rushhourgame'
-version = '0.0.1-SNAPSHOT'
-
-java {
-	toolchain {
-		languageVersion = JavaLanguageVersion.of(21)
-	}
+allprojects {
+    group = 'net.rushhourgame'
+    version = '1.0.0'
+    
+    repositories {
+        mavenCentral()
+        gradlePluginPortal()
+    }
 }
 
-repositories {
-	mavenCentral()
+subprojects {
+    apply plugin: 'java'
+    apply plugin: 'io.spring.dependency-management'
+    
+    java {
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
+        toolchain {
+		    languageVersion = JavaLanguageVersion.of(21)
+	    }
+    }
+    
+    dependencyManagement {
+        dependencies {
+            // Spring Boot BOM
+            imports {
+                mavenBom 'org.springframework.boot:spring-boot-dependencies:3.5.0'
+            }
+            
+            // 共通ライブラリバージョン管理
+        }
+    }
 }
 
-dependencies {
-	compileOnly('org.projectlombok:lombok')
-	annotationProcessor('org.projectlombok:lombok')
-	
-	testCompileOnly('org.projectlombok:lombok')
-	testAnnotationProcessor('org.projectlombok:lombok')
-
-	implementation 'org.springframework.boot:spring-boot-starter'
-	testImplementation 'org.springframework.boot:spring-boot-starter-test'
-	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-}
-
-tasks.named('test') {
-	useJUnitPlatform()
+task buildGameServer {
+    group = 'build'
+    description = 'Build game server'
+    dependsOn ':apps:game-server:build'
 }

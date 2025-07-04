@@ -1,1 +1,3 @@
 rootProject.name = 'rushhour-core'
+
+include 'apps:game-server'
