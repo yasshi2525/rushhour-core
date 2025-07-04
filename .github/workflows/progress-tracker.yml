@@ -1,0 +1,45 @@
+name: Progress Tracking
+on:
+  push:
+    branches: [main, develop]
+  schedule:
+    - cron: '0 9 * * *' # 毎日9時
+
+jobs:
+  collect-metrics:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Analyze Code Metrics
+        run: |
+          ./gradlew sonarqube
+          npm run analyze:frontend
+          
+      - name: Test Coverage Report
+        run: |
+          ./gradlew jacocoTestReport
+          npm run test:coverage
+          
+      - name: Update Progress Dashboard
+        run: |
+          node tools/scripts/update-progress.js
+          
+      - name: Send Slack Notification
+        uses: 8398a7/action-slack@v3
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }} 
+        with:
+          status: custom
+          custom_payload: |
+            {
+              text: "Daily Progress Update",
+              attachments: [{
+                color: "good",
+                fields: [
+                  { title: "Overall Progress", value: "${{ env.OVERALL_PROGRESS }}%" },
+                  { title: "Active Modules", value: "${{ env.ACTIVE_MODULES }}" },
+                  { title: "Blocked Items", value: "${{ env.BLOCKED_COUNT }}" }
+                ]
+              }]
+            }
