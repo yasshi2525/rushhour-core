@@ -48,6 +48,8 @@ jobs:
             - Performance considerations
             - Security concerns
             - Test coverage
+            - Consistency with project specifications and guidelines in the docs folder
+            - 日本語を使用すること。
             
             Be constructive and helpful in your feedback.
           
@@ -67,6 +69,7 @@ jobs:
           
           # Optional: Add specific tools for running tests or linting
           # allowed_tools: "Bash(npm run test),Bash(npm run lint),Bash(npm run typecheck)"
+          allowed_tools: "Bash(./gradlew:*)"
           
           # Optional: Skip review for certain conditions
           # if: |
