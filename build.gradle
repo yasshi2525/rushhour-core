@@ -74,6 +74,14 @@ subprojects {
         useJUnitPlatform()
         finalizedBy jacocoTestReport
     }
+
+    sonar {
+        properties {
+            // サブプロジェクト固有の設定
+            property "sonar.sources", "src/main/java"
+            property "sonar.tests", "src/test/java"
+        }
+    }
 }
 
 task buildGameServer {
@@ -108,8 +116,6 @@ sonar {
         property "sonar.projectName", "rushhour-core"
         property "sonar.projectVersion", project.version
         property "sonar.organization", "yasshi2525"
-        property "sonar.sources", "src/main/java"
-        property "sonar.tests", "src/test/java"
         property "sonar.java.source", "21"
         property "sonar.java.target", "21"
         property "sonar.coverage.jacoco.xmlReportPaths", "${buildDir}/reports/jacoco/jacocoRootReport/jacocoRootReport.xml"
