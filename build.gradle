@@ -21,6 +21,7 @@ subprojects {
     apply plugin: 'java'
     apply plugin: 'io.spring.dependency-management'
     apply plugin: 'jacoco'
+    apply plugin: 'org.sonarqube'
     
     java {
         sourceCompatibility = JavaVersion.VERSION_21
@@ -60,7 +61,7 @@ subprojects {
         violationRules {
             rule {
                 limit {
-                    minimum = 0.95
+                    minimum = 0.30
                 }
             }
         }

@@ -36,19 +36,54 @@ jobs:
       - name: Extract Test Metrics
         id: test-metrics
         run: |
-          # テスト結果の集計
-          TEST_RESULTS=$(find . -name "TEST-*.xml" -exec grep -o 'tests="[0-9]*"' {} \; | sed 's/tests="//' | sed 's/"//' | paste -sd+ - | bc)
-          TEST_FAILURES=$(find . -name "TEST-*.xml" -exec grep -o 'failures="[0-9]*"' {} \; | sed 's/failures="//' | sed 's/"//' | paste -sd+ - | bc)
-          TEST_ERRORS=$(find . -name "TEST-*.xml" -exec grep -o 'errors="[0-9]*"' {} \; | sed 's/errors="//' | sed 's/"//' | paste -sd+ - | bc)
+          # テスト結果の集計（セキュアなXMLパース）
+          TEST_RESULTS=0
+          TEST_FAILURES=0
+          TEST_ERRORS=0
           
-          echo "TEST_TOTAL=${TEST_RESULTS:-0}" >> $GITHUB_OUTPUT
-          echo "TEST_FAILURES=${TEST_FAILURES:-0}" >> $GITHUB_OUTPUT
-          echo "TEST_ERRORS=${TEST_ERRORS:-0}" >> $GITHUB_OUTPUT
+          # 各テストファイルを安全に処理
+          for xml_file in $(find . -name "TEST-*.xml" -type f); do
+            if [ -f "$xml_file" ]; then
+              # xpathを使用してセキュアにXMLを解析
+              tests=$(xpath -q -e '//testsuites/@tests' "$xml_file" 2>/dev/null | sed 's/.*tests="\([0-9]*\)".*/\1/' || echo "0")
+              failures=$(xpath -q -e '//testsuites/@failures' "$xml_file" 2>/dev/null | sed 's/.*failures="\([0-9]*\)".*/\1/' || echo "0")
+              errors=$(xpath -q -e '//testsuites/@errors' "$xml_file" 2>/dev/null | sed 's/.*errors="\([0-9]*\)".*/\1/' || echo "0")
+              
+              # 数値検証
+              if [[ "$tests" =~ ^[0-9]+$ ]]; then
+                TEST_RESULTS=$((TEST_RESULTS + tests))
+              fi
+              if [[ "$failures" =~ ^[0-9]+$ ]]; then
+                TEST_FAILURES=$((TEST_FAILURES + failures))
+              fi
+              if [[ "$errors" =~ ^[0-9]+$ ]]; then
+                TEST_ERRORS=$((TEST_ERRORS + errors))
+              fi
+            fi
+          done
           
-          # カバレッジ率の抽出
+          echo "TEST_TOTAL=${TEST_RESULTS}" >> $GITHUB_OUTPUT
+          echo "TEST_FAILURES=${TEST_FAILURES}" >> $GITHUB_OUTPUT
+          echo "TEST_ERRORS=${TEST_ERRORS}" >> $GITHUB_OUTPUT
+          
+          # カバレッジ率の抽出（セキュアなXMLパース）
           if [ -f "build/reports/jacoco/jacocoRootReport/jacocoRootReport.xml" ]; then
-            COVERAGE=$(grep -o 'type="INSTRUCTION".*covered="[0-9]*".*missed="[0-9]*"' build/reports/jacoco/jacocoRootReport/jacocoRootReport.xml | head -1 | sed 's/.*covered="\([0-9]*\)".*missed="\([0-9]*\)".*/\1 \2/' | awk '{printf "%.1f", $1/($1+$2)*100}')
-            echo "COVERAGE=${COVERAGE:-0}" >> $GITHUB_OUTPUT
+            covered=$(xpath -q -e '//counter[@type="INSTRUCTION"]/@covered' build/reports/jacoco/jacocoRootReport/jacocoRootReport.xml 2>/dev/null | sed 's/.*covered="\([0-9]*\)".*/\1/' || echo "0")
+            missed=$(xpath -q -e '//counter[@type="INSTRUCTION"]/@missed' build/reports/jacoco/jacocoRootReport/jacocoRootReport.xml 2>/dev/null | sed 's/.*missed="\([0-9]*\)".*/\1/' || echo "0")
+            
+            # 数値検証とカバレッジ計算
+            if [[ "$covered" =~ ^[0-9]+$ ]] && [[ "$missed" =~ ^[0-9]+$ ]]; then
+              total=$((covered + missed))
+              if [ $total -gt 0 ]; then
+                COVERAGE=$(echo "scale=1; $covered * 100 / $total" | bc -l)
+              else
+                COVERAGE=0
+              fi
+            else
+              COVERAGE=0
+            fi
+            
+            echo "COVERAGE=${COVERAGE}" >> $GITHUB_OUTPUT
           else
             echo "COVERAGE=0" >> $GITHUB_OUTPUT
           fi
