@@ -3,6 +3,8 @@ plugins {
     id 'org.springframework.boot' version '3.5.0' apply false
     id 'io.spring.dependency-management' version '1.1.7' apply false
     id 'com.google.protobuf' version '0.9.4' apply false
+    id 'jacoco'
+    id 'org.sonarqube' version '6.2.0.5505'
 }
 
 allprojects {
@@ -18,6 +20,8 @@ allprojects {
 subprojects {
     apply plugin: 'java'
     apply plugin: 'io.spring.dependency-management'
+    apply plugin: 'jacoco'
+    apply plugin: 'org.sonarqube'
     
     java {
         sourceCompatibility = JavaVersion.VERSION_21
@@ -37,10 +41,90 @@ subprojects {
             // 共通ライブラリバージョン管理
         }
     }
+    
+    // Jacoco設定
+    jacoco {
+        toolVersion = "0.8.13"
+    }
+    
+    jacocoTestReport {
+        dependsOn test
+        reports {
+            xml.required = true
+            html.required = true
+            csv.required = false
+        }
+        finalizedBy jacocoTestCoverageVerification
+    }
+    
+    jacocoTestCoverageVerification {
+        violationRules {
+            rule {
+                limit {
+                    minimum = 0.30
+                }
+            }
+        }
+    }
+    
+    test {
+        jvmArgs = [
+            '-Xshare:off'
+        ]
+        useJUnitPlatform()
+        finalizedBy jacocoTestReport
+    }
+
+    sonar {
+        properties {
+            // サブプロジェクト固有の設定
+            property "sonar.sources", "src/main/java"
+            property "sonar.tests", "src/test/java"
+        }
+    }
 }
 
 task buildGameServer {
     group = 'build'
     description = 'Build game server'
     dependsOn ':apps:game-server:build'
+}
+
+// 統合されたJacocoレポート
+task jacocoRootReport(type: JacocoReport) {
+    description = 'Generate aggregate Jacoco coverage report for all modules'
+    group = 'reporting'
+    
+    dependsOn(test, subprojects.test, subprojects.jacocoTestReport)
+    
+    additionalSourceDirs.setFrom(subprojects.sourceSets.main.allSource.srcDirs)
+    sourceDirectories.setFrom(subprojects.sourceSets.main.allSource.srcDirs)
+    classDirectories.setFrom(subprojects.sourceSets.main.output)
+    executionData.setFrom(project.fileTree(dir: '.', include: '**/build/jacoco/test.exec'))
+    
+    reports {
+        xml.required = true
+        html.required = true
+        csv.required = false
+    }
+}
+
+// SonarQube設定
+sonar {
+    properties {
+        property "sonar.projectKey", "rushhour-core"
+        property "sonar.projectName", "rushhour-core"
+        property "sonar.projectVersion", project.version
+        property "sonar.organization", "yasshi2525"
+        property "sonar.java.source", "21"
+        property "sonar.java.target", "21"
+        property "sonar.coverage.jacoco.xmlReportPaths", "${buildDir}/reports/jacoco/jacocoRootReport/jacocoRootReport.xml"
+        property "sonar.sourceEncoding", "UTF-8"
+        property "sonar.gradle.skipCompile", "true" // コンパイルタスクの重複実行を回避
+        
+        // SonarQube品質ゲート設定
+        property "sonar.coverage.exclusions", "**/proto/**/*"
+        property "sonar.exclusions", "**/build/**/*,**/proto/**/*"
+        property "sonar.test.exclusions", "**/src/test/**/*"
+    }
 }

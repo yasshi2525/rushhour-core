@@ -10,36 +10,174 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # 全履歴を取得してGit統計用
       
-      - name: Analyze Code Metrics
-        run: |
-          # ./gradlew sonarqube
-          # npm run analyze:frontend
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
           
-      - name: Test Coverage Report
+      - name: Cache Gradle packages
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+            
+      - name: Run Tests and Generate Coverage Report
         run: |
-          # ./gradlew jacocoTestReport
-          # npm run test:coverage
+          ./gradlew clean test jacocoRootReport
           
-      - name: Update Progress Dashboard
+      - name: Extract Test Metrics
+        id: test-metrics
         run: |
-          # node tools/scripts/update-progress.js
+          # テスト結果の集計（セキュアなXMLパース）
+          TEST_RESULTS=0
+          TEST_FAILURES=0
+          TEST_ERRORS=0
           
+          # 各テストファイルを安全に処理
+          for xml_file in $(find . -name "TEST-*.xml" -type f); do
+            if [ -f "$xml_file" ]; then
+              # xpathを使用してセキュアにXMLを解析
+              tests=$(xpath -q -e '//testsuites/@tests' "$xml_file" 2>/dev/null | sed 's/.*tests="\([0-9]*\)".*/\1/' || echo "0")
+              failures=$(xpath -q -e '//testsuites/@failures' "$xml_file" 2>/dev/null | sed 's/.*failures="\([0-9]*\)".*/\1/' || echo "0")
+              errors=$(xpath -q -e '//testsuites/@errors' "$xml_file" 2>/dev/null | sed 's/.*errors="\([0-9]*\)".*/\1/' || echo "0")
+              
+              # 数値検証
+              if [[ "$tests" =~ ^[0-9]+$ ]]; then
+                TEST_RESULTS=$((TEST_RESULTS + tests))
+              fi
+              if [[ "$failures" =~ ^[0-9]+$ ]]; then
+                TEST_FAILURES=$((TEST_FAILURES + failures))
+              fi
+              if [[ "$errors" =~ ^[0-9]+$ ]]; then
+                TEST_ERRORS=$((TEST_ERRORS + errors))
+              fi
+            fi
+          done
+          
+          echo "TEST_TOTAL=${TEST_RESULTS}" >> $GITHUB_OUTPUT
+          echo "TEST_FAILURES=${TEST_FAILURES}" >> $GITHUB_OUTPUT
+          echo "TEST_ERRORS=${TEST_ERRORS}" >> $GITHUB_OUTPUT
+          
+          # カバレッジ率の抽出（セキュアなXMLパース）
+          if [ -f "build/reports/jacoco/jacocoRootReport/jacocoRootReport.xml" ]; then
+            covered=$(xpath -q -e '//counter[@type="INSTRUCTION"]/@covered' build/reports/jacoco/jacocoRootReport/jacocoRootReport.xml 2>/dev/null | sed 's/.*covered="\([0-9]*\)".*/\1/' || echo "0")
+            missed=$(xpath -q -e '//counter[@type="INSTRUCTION"]/@missed' build/reports/jacoco/jacocoRootReport/jacocoRootReport.xml 2>/dev/null | sed 's/.*missed="\([0-9]*\)".*/\1/' || echo "0")
+            
+            # 数値検証とカバレッジ計算
+            if [[ "$covered" =~ ^[0-9]+$ ]] && [[ "$missed" =~ ^[0-9]+$ ]]; then
+              total=$((covered + missed))
+              if [ $total -gt 0 ]; then
+                COVERAGE=$(echo "scale=1; $covered * 100 / $total" | bc -l)
+              else
+                COVERAGE=0
+              fi
+            else
+              COVERAGE=0
+            fi
+            
+            echo "COVERAGE=${COVERAGE}" >> $GITHUB_OUTPUT
+          else
+            echo "COVERAGE=0" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Extract Git Metrics
+        id: git-metrics
+        run: |
+          # 過去1日のコミット数
+          COMMITS_TODAY=$(git log --since="1 day ago" --oneline | wc -l)
+          echo "COMMITS_TODAY=${COMMITS_TODAY}" >> $GITHUB_OUTPUT
+          
+          # 過去1週間の変更統計
+          LINES_ADDED=$(git log --since="1 week ago" --numstat --pretty=format:"" | awk '{added+=$1} END {print added+0}')
+          LINES_DELETED=$(git log --since="1 week ago" --numstat --pretty=format:"" | awk '{deleted+=$2} END {print deleted+0}')
+          FILES_CHANGED=$(git log --since="1 week ago" --name-only --pretty=format:"" | sort -u | wc -l)
+          
+          echo "LINES_ADDED=${LINES_ADDED}" >> $GITHUB_OUTPUT
+          echo "LINES_DELETED=${LINES_DELETED}" >> $GITHUB_OUTPUT
+          echo "FILES_CHANGED=${FILES_CHANGED}" >> $GITHUB_OUTPUT
+          
+          # ブランチ数
+          BRANCH_COUNT=$(git branch -r | wc -l)
+          echo "BRANCH_COUNT=${BRANCH_COUNT}" >> $GITHUB_OUTPUT
+          
+      - name: Calculate Build Status
+        id: build-status
+        run: |
+          BUILD_STATUS="success"
+          if [ ${{ steps.test-metrics.outputs.TEST_FAILURES }} -gt 0 ] || [ ${{ steps.test-metrics.outputs.TEST_ERRORS }} -gt 0 ]; then
+            BUILD_STATUS="warning"
+          fi
+          
+          echo "BUILD_STATUS=${BUILD_STATUS}" >> $GITHUB_OUTPUT
+          
+          # 品質スコアの計算 (0-100)
+          COVERAGE_SCORE=$(echo "${{ steps.test-metrics.outputs.COVERAGE }}" | awk '{print int($1)}')
+          TEST_SUCCESS_RATE=$(echo "${{ steps.test-metrics.outputs.TEST_TOTAL }} ${{ steps.test-metrics.outputs.TEST_FAILURES }} ${{ steps.test-metrics.outputs.TEST_ERRORS }}" | awk '{if($1>0) print int(($1-$2-$3)/$1*100); else print 100}')
+          QUALITY_SCORE=$(echo "${COVERAGE_SCORE} ${TEST_SUCCESS_RATE}" | awk '{print int(($1*0.6 + $2*0.4))}')
+          
+          echo "QUALITY_SCORE=${QUALITY_SCORE}" >> $GITHUB_OUTPUT
+          
+      - name: Upload Coverage Reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-reports
+          path: |
+            build/reports/jacoco/jacocoRootReport/
+            **/build/reports/jacoco/test/
+            
       - name: Send Slack Notification
         uses: 8398a7/action-slack@v3
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }} 
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        if: always()
         with:
           status: custom
           custom_payload: |
             {
-              text: "Daily Progress Update",
-              attachments: [{
-                color: "good",
-                fields: [
-                  { title: "Overall Progress", value: "${{ env.OVERALL_PROGRESS }}%" },
-                  { title: "Active Modules", value: "${{ env.ACTIVE_MODULES }}" },
-                  { title: "Blocked Items", value: "${{ env.BLOCKED_COUNT }}" }
-                ]
+              "text": "📊 Daily Progress Update - Rush Hour Game",
+              "attachments": [{
+                "color": "${{ steps.build-status.outputs.BUILD_STATUS == 'success' && 'good' || steps.build-status.outputs.BUILD_STATUS == 'warning' && 'warning' || 'danger' }}",
+                "fields": [
+                  {
+                    "title": "🎯 品質スコア",
+                    "value": "${{ steps.build-status.outputs.QUALITY_SCORE }}/100",
+                    "short": true
+                  },
+                  {
+                    "title": "🧪 テストカバレッジ",
+                    "value": "${{ steps.test-metrics.outputs.COVERAGE }}%",
+                    "short": true
+                  },
+                  {
+                    "title": "✅ テスト実行結果",
+                    "value": "実行: ${{ steps.test-metrics.outputs.TEST_TOTAL }} | 失敗: ${{ steps.test-metrics.outputs.TEST_FAILURES }} | エラー: ${{ steps.test-metrics.outputs.TEST_ERRORS }}",
+                    "short": false
+                  },
+                  {
+                    "title": "📝 今日のコミット",
+                    "value": "${{ steps.git-metrics.outputs.COMMITS_TODAY }}件",
+                    "short": true
+                  },
+                  {
+                    "title": "🌿 アクティブブランチ",
+                    "value": "${{ steps.git-metrics.outputs.BRANCH_COUNT }}個",
+                    "short": true
+                  },
+                  {
+                    "title": "📈 週間変更統計",
+                    "value": "追加: ${{ steps.git-metrics.outputs.LINES_ADDED }}行 | 削除: ${{ steps.git-metrics.outputs.LINES_DELETED }}行 | ファイル: ${{ steps.git-metrics.outputs.FILES_CHANGED }}個",
+                    "short": false
+                  }
+                ],
+                "footer": "Rush Hour Game CI/CD",
+                "ts": ${{ github.event.head_commit.timestamp && fromJSON(github.event.head_commit.timestamp) || github.run_number }}
               }]
             }
