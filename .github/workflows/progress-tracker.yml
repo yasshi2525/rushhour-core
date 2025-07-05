@@ -20,7 +20,7 @@ jobs:
           distribution: 'temurin'
           
       - name: Cache Gradle packages
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.gradle/caches
@@ -126,7 +126,7 @@ jobs:
           echo "QUALITY_SCORE=${QUALITY_SCORE}" >> $GITHUB_OUTPUT
           
       - name: Upload Coverage Reports
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: coverage-reports
           path: |
