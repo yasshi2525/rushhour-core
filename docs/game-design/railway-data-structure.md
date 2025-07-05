@@ -165,336 +165,769 @@
 * **リアルタイム同期**: WebSocket・WebRTCによる低レイテンシ通信
 * **権威分散システム**: 安全性優先の階層的制御
 
+## データ表現戦略（ハイブリッド型）
+
+このプロジェクトでは、**ハイブリッド型データ表現**を採用し、用途に応じて最適な技術を選択します：
+
+- **リアルタイムデータ**: Redis + Jackson による JSON シリアライズ（30fps更新対応）
+- **永続化データ**: PostgreSQL + JPA（ACID保証、リレーション管理）
+- **サービス間通信**: Protocol Buffers（型安全性、効率性）
+
 ## 必要なデータ構造設計
 
 ### 1. 線路システムデータ構造
 
+#### 1.1 永続化用データ構造（PostgreSQL + JPA）
+
 ```java
-// 線路セグメント
+// 線路セグメント（永続化）
 @Entity
+@Table(name = "track_segments")
+@Cacheable
 public class TrackSegment {
     @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
     private String segmentId;
     
     // 幾何情報
+    @Convert(converter = CurvePointsConverter.class)
+    @Column(columnDefinition = "JSONB")
     private List<Point3D> curve;          // 曲線座標列
+    
+    @Column(nullable = false)
     private double length;                // セグメント長
+    
+    @Column(nullable = false)
     private double maxSpeed;              // 最大速度制限
     
     // 接続情報
+    @Column(name = "start_junction_id")
     private String startJunctionId;      // 開始接続点
+    
+    @Column(name = "end_junction_id")
     private String endJunctionId;        // 終了接続点
     
     // 所有・制御情報
+    @Column(name = "owner_id", nullable = false)
     private String ownerId;              // 所有プレイヤー
-    private boolean isOccupied;          // 占有状態
-    private String occupyingTrainId;     // 占有中電車ID
     
-    // 信号制御
+    // 信号制御（別テーブルとのリレーション）
+    @OneToMany(mappedBy = "segment", cascade = CascadeType.ALL)
+    @JsonManagedReference
     private List<Signal> signals;        // 配置信号機
     
-    // 分散処理用
+    // 監査用
+    @CreationTimestamp
+    private LocalDateTime createdAt;
+    
+    @UpdateTimestamp
+    private LocalDateTime updatedAt;
+    
+    @Version
+    private Long version;                // 楽観的ロック
+}
+
+// リアルタイム状態管理用（Redis）
+@Data
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonInclude(JsonInclude.Include.NON_NULL)
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class TrackSegmentState {
+    @JsonProperty("segmentId")
+    private String segmentId;
+    
+    @JsonProperty("isOccupied")
+    private boolean isOccupied;          // 占有状態
+    
+    @JsonProperty("occupyingTrainId")
+    private String occupyingTrainId;     // 占有中電車ID
+    
+    @JsonProperty("nodeId")
     private String nodeId;               // 処理ノードID
-    private LocalDateTime lastUpdate;    // 最終更新時刻
+    
+    @JsonProperty("lastUpdate")
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSZ")
+    private Instant lastUpdate;          // 最終更新時刻
 }
 
 // 接続点（分岐・合流）
 @Entity
+@Table(name = "junctions")
+@Cacheable
 public class Junction {
     @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
     private String junctionId;
     
-    private Point3D position;
+    @Embedded
+    private Location position;
+    
+    @Convert(converter = StringListConverter.class)
+    @Column(columnDefinition = "JSONB")
     private List<String> connectedSegments;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private JunctionType type;           // MERGE, SPLIT, CROSS
     
-    // 信号制御
-    private Map<String, SignalState> directions; // 方向別信号状態
+    @CreationTimestamp
+    private LocalDateTime createdAt;
+    
+    @UpdateTimestamp
+    private LocalDateTime updatedAt;
 }
 
-// 信号機
+// 信号機状態（リアルタイム）
+@Data
+@JsonInclude(JsonInclude.Include.NON_NULL)
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class JunctionState {
+    @JsonProperty("junctionId")
+    private String junctionId;
+    
+    @JsonProperty("directions")
+    private Map<String, SignalState> directions; // 方向別信号状態
+    
+    @JsonProperty("lastUpdate")
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSZ")
+    private Instant lastUpdate;
+}
+
+// 信号機（永続化）
 @Entity
+@Table(name = "signals")
+@Cacheable
 public class Signal {
     @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
     private String signalId;
     
-    private Point3D position;
-    private String segmentId;            // 設置セグメント
-    private SignalType type;             // BLOCK, PATH, ABSOLUTE
-    private SignalState state;           // RED, YELLOW, GREEN
+    @Embedded
+    private Location position;
     
-    // 制御ロジック
-    private String controlledBy;         // 制御ノードID
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "segment_id")
+    @JsonBackReference
+    private TrackSegment segment;        // 設置セグメント
+    
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private SignalType type;             // BLOCK, PATH, ABSOLUTE
+    
+    @Convert(converter = StringListConverter.class)
+    @Column(columnDefinition = "JSONB")
     private List<String> protectedSegments; // 保護対象セグメント
+    
+    @CreationTimestamp
+    private LocalDateTime createdAt;
+    
+    @UpdateTimestamp
+    private LocalDateTime updatedAt;
+}
+
+// 信号機状態（リアルタイム）
+@Data
+@JsonInclude(JsonInclude.Include.NON_NULL)
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class SignalState {
+    @JsonProperty("signalId")
+    private String signalId;
+    
+    @JsonProperty("state")
+    private SignalDisplayState state;    // RED, YELLOW, GREEN
+    
+    @JsonProperty("controlledBy")
+    private String controlledBy;         // 制御ノードID
+    
+    @JsonProperty("lastUpdate")
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSZ")
+    private Instant lastUpdate;
+}
+```
+
+#### 1.2 Protocol Buffers対応（サービス間通信）
+
+```protobuf
+// proto/track.proto
+syntax = "proto3";
+
+message TrackSegmentUpdate {
+    string segment_id = 1;
+    bool is_occupied = 2;
+    string occupying_train_id = 3;
+    int64 timestamp = 4;
+}
+
+message SignalStateUpdate {
+    string signal_id = 1;
+    SignalDisplayState state = 2;
+    string controlled_by = 3;
+    int64 timestamp = 4;
+}
+
+enum SignalDisplayState {
+    RED = 0;
+    YELLOW = 1;
+    GREEN = 2;
+}
+```
+
+```java
+// Java側のProtocolBuffers変換
+@Component
+public class TrackStateMapper {
+    public TrackSegmentState fromProto(TrackSegmentUpdate proto) {
+        TrackSegmentState state = new TrackSegmentState();
+        state.setSegmentId(proto.getSegmentId());
+        state.setOccupied(proto.getIsOccupied());
+        state.setOccupyingTrainId(proto.getOccupyingTrainId());
+        state.setLastUpdate(Instant.ofEpochMilli(proto.getTimestamp()));
+        return state;
+    }
+    
+    public TrackSegmentUpdate toProto(TrackSegmentState state) {
+        return TrackSegmentUpdate.newBuilder()
+            .setSegmentId(state.getSegmentId())
+            .setIsOccupied(state.isOccupied())
+            .setOccupyingTrainId(state.getOccupyingTrainId())
+            .setTimestamp(state.getLastUpdate().toEpochMilli())
+            .build();
+    }
 }
 ```
 
 ### 2. 駅システムデータ構造
 
+#### 2.1 永続化用データ構造
+
 ```java
-// 駅
+// 駅（永続化）
 @Entity
+@Table(name = "stations")
+@Cacheable
 public class Station {
     @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
     private String stationId;
     
     // 基本情報
+    @Column(nullable = false)
     private String name;
-    private Point3D position;
+    
+    @Embedded
+    private Location location;
+    
+    @Column(name = "owner_id", nullable = false)
     private String ownerId;
     
-    // 施設構成
+    // 施設構成（別テーブルとのリレーション）
+    @OneToMany(mappedBy = "station", cascade = CascadeType.ALL)
+    @JsonManagedReference
     private List<Gate> gates;            // 改札
+    
+    @OneToMany(mappedBy = "station", cascade = CascadeType.ALL)
+    @JsonManagedReference
     private List<Platform> platforms;    // ホーム
+    
+    @OneToMany(mappedBy = "station", cascade = CascadeType.ALL)
+    @JsonManagedReference
     private List<Corridor> corridors;    // 通路
     
     // 容量情報
+    @Column(name = "total_capacity", nullable = false)
     private int totalCapacity;           // 駅全体容量
-    private int currentOccupancy;        // 現在利用者数
     
     // 接続情報
+    @Convert(converter = StringListConverter.class)
+    @Column(columnDefinition = "JSONB")
     private List<String> connectedTracks; // 接続線路
     
-    // 統計情報
-    private StationStatistics statistics;
+    // 監査用
+    @CreationTimestamp
+    private LocalDateTime createdAt;
+    
+    @UpdateTimestamp
+    private LocalDateTime updatedAt;
+    
+    @Version
+    private Long version;
 }
 
-// 改札
+// 駅状態（リアルタイム）
+@Data
+@JsonInclude(JsonInclude.Include.NON_NULL)
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class StationState {
+    @JsonProperty("stationId")
+    private String stationId;
+    
+    @JsonProperty("currentOccupancy")
+    private int currentOccupancy;        // 現在利用者数
+    
+    @JsonProperty("gateStates")
+    private Map<String, GateState> gateStates; // 改札状態
+    
+    @JsonProperty("platformStates")
+    private Map<String, PlatformState> platformStates; // ホーム状態
+    
+    @JsonProperty("lastUpdate")
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSZ")
+    private Instant lastUpdate;
+}
+
+// 改札（永続化）
 @Entity
+@Table(name = "gates")
+@Cacheable
 public class Gate {
     @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
     private String gateId;
     
-    private String stationId;
-    private Point3D position;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "station_id")
+    @JsonBackReference
+    private Station station;
+    
+    @Embedded
+    private Location position;
+    
+    @Column(nullable = false)
     private int capacity;                // 同時通過可能人数
+    
+    @Column(name = "processing_time", nullable = false)
     private double processingTime;       // 一人当たり通過時間
     
-    // 現在状態
-    private Queue<String> waitingQueue;  // 待機列
-    private int currentProcessing;       // 処理中人数
+    @CreationTimestamp
+    private LocalDateTime createdAt;
+    
+    @UpdateTimestamp
+    private LocalDateTime updatedAt;
 }
 
-// プラットフォーム
+// 改札状態（リアルタイム）
+@Data
+@JsonInclude(JsonInclude.Include.NON_NULL)
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class GateState {
+    @JsonProperty("gateId")
+    private String gateId;
+    
+    @JsonProperty("waitingQueue")
+    private Queue<String> waitingQueue;  // 待機列
+    
+    @JsonProperty("currentProcessing")
+    private int currentProcessing;       // 処理中人数
+    
+    @JsonProperty("lastUpdate")
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSZ")
+    private Instant lastUpdate;
+}
+
+// プラットフォーム（永続化）
 @Entity
+@Table(name = "platforms")
+@Cacheable
 public class Platform {
     @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
     private String platformId;
     
-    private String stationId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "station_id")
+    @JsonBackReference
+    private Station station;
+    
+    @Column(name = "track_segment_id")
     private String trackSegmentId;       // 接続線路
+    
+    @Column(nullable = false)
     private int capacity;                // 収容定員
+    
+    @Convert(converter = DoorListConverter.class)
+    @Column(columnDefinition = "JSONB")
     private List<Door> doors;            // ドア位置
     
-    // 現在状態
+    @CreationTimestamp
+    private LocalDateTime createdAt;
+    
+    @UpdateTimestamp
+    private LocalDateTime updatedAt;
+}
+
+// プラットフォーム状態（リアルタイム）
+@Data
+@JsonInclude(JsonInclude.Include.NON_NULL)
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class PlatformState {
+    @JsonProperty("platformId")
+    private String platformId;
+    
+    @JsonProperty("currentPassengers")
     private Set<String> currentPassengers; // 現在の利用者
+    
+    @JsonProperty("isTrainPresent")
     private boolean isTrainPresent;      // 電車停車中フラグ
+    
+    @JsonProperty("currentTrainId")
     private String currentTrainId;       // 停車中電車ID
+    
+    @JsonProperty("lastUpdate")
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSZ")
+    private Instant lastUpdate;
 }
 ```
 
-### 3. 電車システムデータ構造
+### 3. 電車システムデータ構造（ハイブリッド設計）
+
+#### 3.1 永続化用データ構造
 
 ```java
-// 電車
+// 電車（永続化）
 @Entity
+@Table(name = "trains")
+@Cacheable
 public class Train {
     @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
     private String trainId;
     
     // 基本情報
+    @Column(name = "owner_id", nullable = false)
     private String ownerId;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private TrainType type;              // 普通、快速、特急等
+    
+    @Column(name = "group_id")
     private String groupId;              // 電車グループID
     
-    // 編成情報
+    // 編成情報（別テーブルとのリレーション）
+    @OneToMany(mappedBy = "train", cascade = CascadeType.ALL)
+    @JsonManagedReference
     private List<Car> cars;              // 車両編成
+    
+    @Column(name = "total_capacity", nullable = false)
     private int totalCapacity;           // 総定員
+    
+    @Column(name = "door_count", nullable = false)
     private int doorCount;               // 総ドア数
     
-    // 現在状態
-    private TrainState currentState;
-    private Point3D position;
-    private double speed;                // 現在速度
-    private double acceleration;         // 加速度
-    private String currentSegmentId;     // 現在セグメント
-    private Direction direction;         // 進行方向
-    
     // 運行情報
+    @OneToOne(mappedBy = "train", cascade = CascadeType.ALL)
+    @JsonManagedReference
     private Route assignedRoute;         // 運行経路
+    
+    @OneToOne(mappedBy = "train", cascade = CascadeType.ALL)
+    @JsonManagedReference
     private Schedule schedule;           // 運行スケジュール
-    private Set<String> passengers;      // 乗客ID集合
     
     // 制御情報
+    @Column(name = "is_controlled_by_player")
     private boolean isControlledByPlayer; // プレイヤー制御フラグ
+    
+    @CreationTimestamp
+    private LocalDateTime createdAt;
+    
+    @UpdateTimestamp
+    private LocalDateTime updatedAt;
+    
+    @Version
+    private Long version;
+}
+
+// 電車状態（リアルタイム）
+@Data
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonInclude(JsonInclude.Include.NON_NULL)
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class TrainState {
+    @JsonProperty("trainId")
+    private String trainId;
+    
+    @JsonProperty("currentState")
+    private TrainOperationState currentState; // STOPPED, MOVING, BOARDING
+    
+    @JsonProperty("position")
+    private Position position;
+    
+    @JsonProperty("speed")
+    private double speed;                // 現在速度
+    
+    @JsonProperty("acceleration")
+    private double acceleration;         // 加速度
+    
+    @JsonProperty("currentSegmentId")
+    private String currentSegmentId;     // 現在セグメント
+    
+    @JsonProperty("direction")
+    private Direction direction;         // 進行方向
+    
+    @JsonProperty("passengers")
+    private Set<String> passengers;      // 乗客ID集合
+    
+    @JsonProperty("controllingNodeId")
     private String controllingNodeId;    // 制御ノードID
-    private LocalDateTime lastUpdate;
-}
-
-// 車両
-@Entity
-public class Car {
-    @Id
-    private String carId;
     
-    private String trainId;
-    private int carNumber;               // 編成内番号
-    private int capacity;                // 定員
-    private int doorCount;               // ドア数
-    private CarType type;                // 車両種別
+    @JsonProperty("lastUpdate")
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSZ")
+    private Instant lastUpdate;
     
-    // 性能
-    private double maxSpeed;             // 最大速度
-    private double acceleration;         // 加速性能
-    private double brakingForce;         // 制動性能
-}
-
-// 運行経路
-@Entity
-public class Route {
-    @Id
-    private String routeId;
-    
-    private String trainId;
-    private List<RoutePoint> routePoints; // 経路点列
-    private boolean isLoop;              // 循環路線フラグ
-    private OperationMode mode;          // 営業・回送
-}
-
-// 経路点
-@Entity
-public class RoutePoint {
-    @Id
-    private String routePointId;
-    
-    private String routeId;
-    private int sequence;                // 順序
-    private String stationId;            // 駅ID（停車時）
-    private String segmentId;            // 通過セグメントID
-    private RouteAction action;          // STOP, PASS, REVERSE
-    private Duration stopTime;           // 停車時間（停車時のみ）
+    // Jackson/Proto 両対応
+    public String toJson() {
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            return mapper.writeValueAsString(this);
+        } catch (Exception e) {
+            throw new RuntimeException("JSON serialization failed", e);
+        }
+    }
 }
 ```
 
-### 4. 住民システムデータ構造
+#### 3.2 Protocol Buffers対応
+
+```protobuf
+// proto/train.proto
+syntax = "proto3";
+
+message TrainPositionUpdate {
+    string train_id = 1;
+    double x = 2;
+    double y = 3;
+    double speed = 4;
+    double acceleration = 5;
+    string current_segment_id = 6;
+    Direction direction = 7;
+    int64 timestamp = 8;
+}
+
+message TrainStateUpdate {
+    string train_id = 1;
+    TrainOperationState state = 2;
+    repeated string passengers = 3;
+    string controlling_node_id = 4;
+    int64 timestamp = 5;
+}
+
+enum TrainOperationState {
+    STOPPED = 0;
+    MOVING = 1;
+    BOARDING = 2;
+    EMERGENCY = 3;
+}
+
+enum Direction {
+    FORWARD = 0;
+    BACKWARD = 1;
+}
+```
+
+### 4. 住民システムデータ構造（ECS対応）
 
 ```java
 // 住民（shared-modelsから拡張）
 @Entity
+@Table(name = "residents")
+@Cacheable
 public class Resident {
     @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
     private String residentId;
     
-    // 基本情報
+    // 基本情報（既存shared-modelsとの互換性）
+    @Embedded
     private PersonalInfo personalInfo;   // 既存
+    
+    @Embedded
     private EconomicStatus economicStatus; // 既存
     
-    // 移動関連
-    private TravelPlan currentTravelPlan; // 既存
-    private Point3D currentPosition;
-    private ResidentState state;         // WAITING, TRAVELING, AT_DESTINATION
-    
     // AI行動
+    @OneToOne(mappedBy = "resident", cascade = CascadeType.ALL)
+    @JsonManagedReference
     private AIBehavior behavior;
+    
+    @OneToMany(mappedBy = "resident", cascade = CascadeType.ALL)
+    @JsonManagedReference
     private List<TravelPattern> patterns; // 行動パターン
     
-    // 分散処理用
-    private String assignedNodeId;       // 処理ノードID
-    private LocalDateTime lastUpdate;
-}
-
-// AI行動パターン
-@Entity
-public class AIBehavior {
-    @Id
-    private String behaviorId;
-    
-    private String residentId;
-    private BehaviorType type;           // COMMUTER, TOURIST, RANDOM
-    private Map<String, Double> preferences; // 路線選好
-    private double timeValue;            // 時間価値
-    private double comfortValue;         // 快適性価値
-}
-```
-
-### 5. 分散処理用データ構造
-
-```java
-// 処理ノード管理
-@Entity
-public class ProcessingNode {
-    @Id
-    private String nodeId;
-    
-    private NodeType type;               // TRAIN_CONTROL, RESIDENT_AI, PATHFINDING
-    private String serviceUrl;
-    private NodeStatus status;           // ACTIVE, INACTIVE, OVERLOADED
-    
-    // 負荷情報
-    private int assignedEntities;        // 割り当てエンティティ数
-    private double cpuUsage;
-    private double memoryUsage;
-    
-    // 管轄領域
-    private List<String> managedSegments; // 管理セグメント
-    private List<String> managedStations; // 管理駅
-}
-
-// イベントストリーム
-@Entity
-public class GameEvent {
-    @Id
-    private String eventId;
-    
-    private EventType type;              // TRAIN_MOVED, PASSENGER_BOARDED
-    private String sourceEntityId;       // 発生元エンティティ
-    private Map<String, Object> payload; // イベントデータ
-    private LocalDateTime timestamp;
-    
-    // 分散処理用
-    private String sourceNodeId;         // 発生ノード
-    private List<String> targetNodes;    // 配信対象ノード
-    private int version;                 // イベントバージョン
-}
-```
-
-### 6. パフォーマンス最適化用データ構造
-
-```java
-// 空間インデックス
-@Entity
-public class SpatialIndex {
-    @Id
-    private String indexId;
-    
-    private BoundingBox bounds;          // 境界領域
-    private int level;                   // 分割レベル
-    private List<String> entities;       // 含まれるエンティティID
-    private List<String> childIndices;   // 子インデックス
-    
-    // キャッシュ情報
-    private LocalDateTime lastAccess;
-    private int accessCount;
-}
-
-// 経路キャッシュ
-@Entity
-public class PathCache {
-    @Id
-    private String cacheKey;             // origin_destination_preferences
-    
-    private String originStationId;
-    private String destinationStationId;
-    private Map<String, Double> preferences; // 経路選好
-    
-    private List<String> optimalPath;    // 最適経路
-    private double totalCost;            // 総コスト
-    private Duration estimatedTime;      // 推定時間
-    
+    @CreationTimestamp
     private LocalDateTime createdAt;
-    private LocalDateTime expiresAt;
-    private int usageCount;
+    
+    @UpdateTimestamp
+    private LocalDateTime updatedAt;
+    
+    @Version
+    private Long version;
+}
+
+// 住民状態（リアルタイム）
+@Data
+@JsonInclude(JsonInclude.Include.NON_NULL)
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class ResidentState {
+    @JsonProperty("residentId")
+    private String residentId;
+    
+    @JsonProperty("currentTravelPlan")
+    private TravelPlan currentTravelPlan; // 既存
+    
+    @JsonProperty("currentPosition")
+    private Position currentPosition;
+    
+    @JsonProperty("state")
+    private ResidentActivityState state; // WAITING, TRAVELING, AT_DESTINATION
+    
+    @JsonProperty("assignedNodeId")
+    private String assignedNodeId;       // 処理ノードID
+    
+    @JsonProperty("lastUpdate")
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSZ")
+    private Instant lastUpdate;
 }
 ```
 
-これらのデータ構造により、マルチプレイヤー対応の大規模鉄道シミュレーションシステムの要件を満たし、分散処理とリアルタイム同期を実現できます。
+### 5. フェーズ別実装戦略
+
+#### Phase 1: モノリス期（Jackson + Redis + PostgreSQL）
+
+```java
+// Redis設定
+@Configuration
+public class RedisConfig {
+    @Bean
+    public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory factory) {
+        RedisTemplate<String, Object> template = new RedisTemplate<>();
+        template.setConnectionFactory(factory);
+        
+        Jackson2JsonRedisSerializer<Object> serializer = 
+            new Jackson2JsonRedisSerializer<>(Object.class);
+        
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.registerModule(new JavaTimeModule());
+        mapper.enableDefaultTyping(ObjectMapper.DefaultTyping.NON_FINAL);
+        serializer.setObjectMapper(mapper);
+        
+        template.setDefaultSerializer(serializer);
+        return template;
+    }
+}
+
+// サービス実装例
+@Service
+@Transactional
+public class TrainStateService {
+    @Autowired
+    private RedisTemplate<String, TrainState> redisTemplate;
+    
+    @Autowired
+    private TrainRepository trainRepository;
+    
+    @Cacheable(value = "trainStates", key = "#trainId")
+    public TrainState getTrainState(String trainId) {
+        String key = "train:state:" + trainId;
+        return redisTemplate.opsForValue().get(key);
+    }
+    
+    public void updateTrainState(TrainState state) {
+        String key = "train:state:" + state.getTrainId();
+        redisTemplate.opsForValue().set(key, state, Duration.ofSeconds(30));
+        
+        // 非同期でイベント発行
+        applicationEventPublisher.publishEvent(new TrainStateUpdatedEvent(state));
+    }
+}
+```
+
+#### Phase 2: マイクロサービス期（Protocol Buffers追加）
+
+```java
+// gRPCサービス実装
+@GrpcService
+public class TrainPositionGrpcService extends TrainPositionServiceGrpc.TrainPositionServiceImplBase {
+    
+    @Autowired
+    private TrainStateService trainStateService;
+    
+    @Autowired
+    private TrainStateMapper mapper;
+    
+    @Override
+    public void updatePosition(TrainPositionUpdate request, 
+                              StreamObserver<TrainPositionResponse> responseObserver) {
+        TrainState state = mapper.fromProto(request);
+        trainStateService.updateTrainState(state);
+        
+        TrainPositionResponse response = TrainPositionResponse.newBuilder()
+            .setSuccess(true)
+            .setTimestamp(System.currentTimeMillis())
+            .build();
+            
+        responseObserver.onNext(response);
+        responseObserver.onCompleted();
+    }
+}
+```
+
+#### Phase 3: 大規模対応期（最適化）
+
+```java
+// 高速バイナリシリアライズ
+@Component
+public class OptimizedTrainStateSerializer {
+    private final Kryo kryo = new Kryo();
+    
+    @PostConstruct
+    public void init() {
+        kryo.register(TrainState.class);
+        kryo.register(Position.class);
+        kryo.setReferences(false);
+    }
+    
+    public byte[] serialize(TrainState state) {
+        try (Output output = new Output(256, -1)) {
+            kryo.writeObject(output, state);
+            return output.toBytes();
+        }
+    }
+    
+    public TrainState deserialize(byte[] data) {
+        try (Input input = new Input(data)) {
+            return kryo.readObject(input, TrainState.class);
+        }
+    }
+}
+
+// 空間インデックスキャッシュ
+@Service
+public class SpatialCacheService {
+    @Autowired
+    private RedisTemplate<String, Object> redisTemplate;
+    
+    @Cacheable(value = "spatialIndex", key = "#bounds.toString()")
+    public List<String> getEntitiesInBounds(BoundingBox bounds) {
+        // Redisの地理空間インデックスを使用
+        String key = "spatial:entities";
+        return redisTemplate.opsForGeo()
+            .radiusByMember(key, bounds.getCenter(), 
+                           Distance.of(bounds.getRadius(), DistanceUnit.KILOMETERS))
+            .getContent()
+            .stream()
+            .map(result -> result.getContent().getName())
+            .collect(Collectors.toList());
+    }
+}
+```
+
+### 6. 技術選択まとめ
+
+| 用途 | Phase 1 | Phase 2 | Phase 3 |
+|------|---------|---------|---------|
+| リアルタイムデータ | Jackson + Redis | + Protocol Buffers | + Kryo最適化 |
+| 永続化データ | JPA + PostgreSQL | + 読み取り専用レプリカ | + 分散DB |
+| サービス間通信 | REST API | gRPC + Protocol Buffers | + 負荷分散 |
+| キャッシュ | Spring Cache | + 分散キャッシュ | + 空間インデックス |
+| イベント配信 | Spring Events | Kafka + Jackson | + バイナリ圧縮 |
+
+この段階的なアプローチにより、各フェーズで必要な性能とスケーラビリティを確保しながら、技術的負債を最小化した実装が可能です。
