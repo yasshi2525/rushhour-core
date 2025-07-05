@@ -178,6 +178,5 @@ jobs:
                   }
                 ],
                 "footer": "Rush Hour Game CI/CD",
-                "ts": ${{ github.event.head_commit.timestamp && fromJSON(github.event.head_commit.timestamp) || github.run_number }}
-              }]
+                "ts": ${{ fromJSON('' + (new Date(github.event.head_commit.timestamp).getTime() / 1000)) || github.run_number }}
             }
