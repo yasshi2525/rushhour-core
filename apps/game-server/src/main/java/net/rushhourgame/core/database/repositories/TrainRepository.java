@@ -1,6 +1,7 @@
 package net.rushhourgame.core.database.repositories;
 
 import net.rushhourgame.core.database.entities.TrainEntity;
+import net.rushhourgame.models.common.TrainType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -22,7 +23,7 @@ public interface TrainRepository extends JpaRepository<TrainEntity, String> {
     /**
      * 電車タイプで電車を検索
      */
-    List<TrainEntity> findByTrainType(String trainType);
+    List<TrainEntity> findByTrainType(TrainType trainType);
     
     /**
      * グループIDで電車を検索

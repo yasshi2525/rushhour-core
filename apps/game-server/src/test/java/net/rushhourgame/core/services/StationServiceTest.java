@@ -55,11 +55,10 @@ class StationServiceTest {
     @Test
     void saveStation_shouldPersistStationAndRelatedEntities() {
         // テストデータの準備
-        String stationId = "station-1";
-        Station station = createTestStation(stationId, "東京駅", "owner-1", 1000, 35.6895, 139.6917,
-                Arrays.asList(createTestPlatform("platform-1", stationId, "track-1", 200)),
-                Arrays.asList(createTestGate("gate-1", stationId, 50, 10.0, 35.6890, 139.6910)),
-                Arrays.asList(createTestCorridor("corridor-1", stationId, 50.0, 5.0))
+        Station station = createTestStation("東京駅", "owner-1", 1000, 35.6895, 139.6917,
+                Arrays.asList(createTestPlatform("track-1", 200)),
+                Arrays.asList(createTestGate(50, 10.0, 35.6890, 139.6910)),
+                Arrays.asList(createTestCorridor(50.0, 5.0))
         );
 
         // サービスメソッドの実行
@@ -67,14 +66,14 @@ class StationServiceTest {
 
         // 検証
         assertThat(savedStation).isNotNull();
-        assertThat(savedStation.getId()).isEqualTo("station-1");
+        assertThat(savedStation.getId()).isNotNull(); // UUIDが自動生成されることを確認
         assertThat(savedStation.getName()).isEqualTo("東京駅");
         assertThat(savedStation.getPlatforms()).hasSize(1);
         assertThat(savedStation.getGates()).hasSize(1);
         assertThat(savedStation.getCorridors()).hasSize(1);
 
         // データベースから直接取得して検証
-        Optional<StationEntity> foundEntity = stationRepository.findById("station-1");
+        Optional<StationEntity> foundEntity = stationRepository.findById(savedStation.getId());
         assertThat(foundEntity).isPresent();
         assertThat(foundEntity.get().getPlatforms()).hasSize(1);
         assertThat(foundEntity.get().getGates()).hasSize(1);
@@ -88,11 +87,11 @@ class StationServiceTest {
     @Test
     void findById_shouldReturnStation_whenStationExists() {
         // テストデータの準備
-        StationEntity entity = createTestStationEntity("station-2", "大阪駅", "owner-2", 800, 34.6937, 135.5022);
-        stationRepository.save(entity);
+        StationEntity entity = createTestStationEntity("大阪駅", "owner-2", 800, 34.6937, 135.5022);
+        StationEntity savedEntity = stationRepository.save(entity);
 
         // サービスメソッドの実行
-        Optional<Station> foundStation = stationService.findById("station-2");
+        Optional<Station> foundStation = stationService.findById(savedEntity.getId());
 
         // 検証
         assertThat(foundStation).isPresent();
@@ -119,15 +118,15 @@ class StationServiceTest {
     @Test
     void findByName_shouldReturnStation_whenStationExists() {
         // テストデータの準備
-        StationEntity entity = createTestStationEntity("station-3", "名古屋駅", "owner-3", 700, 35.1707, 136.8816);
-        stationRepository.save(entity);
+        StationEntity entity = createTestStationEntity("名古屋駅", "owner-3", 700, 35.1707, 136.8816);
+        StationEntity savedEntity = stationRepository.save(entity);
 
         // サービスメソッドの実行
         Optional<Station> foundStation = stationService.findByName("名古屋駅");
 
         // 検証
         assertThat(foundStation).isPresent();
-        assertThat(foundStation.get().getId()).isEqualTo("station-3");
+        assertThat(foundStation.get().getId()).isEqualTo(savedEntity.getId());
     }
 
     /**
@@ -150,9 +149,9 @@ class StationServiceTest {
     @Test
     void findByOwnerId_shouldReturnStations_whenStationsExist() {
         // テストデータの準備
-        stationRepository.save(createTestStationEntity("station-4", "札幌駅", "owner-4", 500, 43.0686, 141.3507));
-        stationRepository.save(createTestStationEntity("station-5", "仙台駅", "owner-4", 600, 38.2682, 140.8701));
-        stationRepository.save(createTestStationEntity("station-6", "福岡駅", "owner-5", 900, 33.5903, 130.4017));
+        stationRepository.save(createTestStationEntity("札幌駅", "owner-4", 500, 43.0686, 141.3507));
+        stationRepository.save(createTestStationEntity("仙台駅", "owner-4", 600, 38.2682, 140.8701));
+        stationRepository.save(createTestStationEntity("福岡駅", "owner-5", 900, 33.5903, 130.4017));
 
         // サービスメソッドの実行
         List<Station> stations = stationService.findByOwnerId("owner-4");
@@ -169,8 +168,8 @@ class StationServiceTest {
     @Test
     void findAll_shouldReturnAllStations() {
         // テストデータの準備
-        stationRepository.save(createTestStationEntity("station-7", "広島駅", "owner-6", 400, 34.3963, 132.4594));
-        stationRepository.save(createTestStationEntity("station-8", "岡山駅", "owner-6", 300, 34.6617, 133.9167));
+        stationRepository.save(createTestStationEntity("広島駅", "owner-6", 400, 34.3963, 132.4594));
+        stationRepository.save(createTestStationEntity("岡山駅", "owner-6", 300, 34.6617, 133.9167));
 
         // サービスメソッドの実行
         List<Station> stations = stationService.findAll();
@@ -186,11 +185,11 @@ class StationServiceTest {
     @Test
     void findByConnectedTrackId_shouldReturnStations() {
         // テストデータの準備
-        StationEntity station1 = createTestStationEntity("station-9", "京都駅", "owner-7", 750, 35.0000, 135.7000);
+        StationEntity station1 = createTestStationEntity("京都駅", "owner-7", 750, 35.0000, 135.7000);
         station1.setConnectedTrackIds(Arrays.asList("track-A", "track-B"));
         stationRepository.save(station1);
 
-        StationEntity station2 = createTestStationEntity("station-10", "新横浜駅", "owner-7", 650, 35.5000, 139.6000);
+        StationEntity station2 = createTestStationEntity("新横浜駅", "owner-7", 650, 35.5000, 139.6000);
         station2.setConnectedTrackIds(Arrays.asList("track-B", "track-C"));
         stationRepository.save(station2);
 
@@ -209,9 +208,9 @@ class StationServiceTest {
     @Test
     void findByLocationRange_shouldReturnStationsInGivenRange() {
         // テストデータの準備
-        stationRepository.save(createTestStationEntity("station-11", "新宿駅", "owner-8", 1200, 35.6895, 139.6917)); // 範囲内
-        stationRepository.save(createTestStationEntity("station-12", "渋谷駅", "owner-8", 1100, 35.6581, 139.7017)); // 範囲内
-        stationRepository.save(createTestStationEntity("station-13", "横浜駅", "owner-8", 1000, 35.4437, 139.6380)); // 範囲外
+        stationRepository.save(createTestStationEntity("新宿駅", "owner-8", 1200, 35.6895, 139.6917)); // 範囲内
+        stationRepository.save(createTestStationEntity("渋谷駅", "owner-8", 1100, 35.6581, 139.7017)); // 範囲内
+        stationRepository.save(createTestStationEntity("横浜駅", "owner-8", 1000, 35.4437, 139.6380)); // 範囲外
 
         // サービスメソッドの実行
         List<Station> stations = stationService.findByLocationRange(35.6, 35.7, 139.6, 139.8);
@@ -228,10 +227,10 @@ class StationServiceTest {
     @Test
     void updateStation_shouldUpdateExistingStation() {
         // テストデータの準備
-        StationEntity originalEntity = createTestStationEntity("station-14", "旧駅名", "owner-9", 500, 30.0, 130.0);
-        stationRepository.save(originalEntity);
+        StationEntity originalEntity = createTestStationEntity("旧駅名", "owner-9", 500, 30.0, 130.0);
+        StationEntity savedEntity = stationRepository.save(originalEntity);
 
-        Station updatedStation = stationMapper.toDomain(originalEntity);
+        Station updatedStation = stationMapper.toDomain(savedEntity);
         updatedStation.setName("新駅名");
         updatedStation.setTotalCapacity(600);
         updatedStation.getLocation().setX(31.0);
@@ -241,13 +240,13 @@ class StationServiceTest {
 
         // 検証
         assertThat(resultStation).isNotNull();
-        assertThat(resultStation.getId()).isEqualTo("station-14");
+        assertThat(resultStation.getId()).isEqualTo(savedEntity.getId());
         assertThat(resultStation.getName()).isEqualTo("新駅名");
         assertThat(resultStation.getTotalCapacity()).isEqualTo(600);
         assertThat(resultStation.getLocation().getX()).isEqualTo(31.0);
 
         // データベースから直接取得して検証
-        Optional<StationEntity> foundEntity = stationRepository.findById("station-14");
+        Optional<StationEntity> foundEntity = stationRepository.findById(savedEntity.getId());
         assertThat(foundEntity).isPresent();
         assertThat(foundEntity.get().getName()).isEqualTo("新駅名");
         assertThat(foundEntity.get().getTotalCapacity()).isEqualTo(600);
@@ -261,7 +260,8 @@ class StationServiceTest {
     @Test
     void updateStation_shouldThrowException_whenStationDoesNotExist() {
         // 存在しない駅のドメインモデル
-        Station nonExistentStation = createTestStation("non-existent-update-id", "架空駅", "owner-X", 100, 0.0, 0.0, null, null, null);
+        Station nonExistentStation = createTestStation("架空駅", "owner-X", 100, 0.0, 0.0, null, null, null);
+        nonExistentStation.setId("non-existent-update-id"); // 存在しないIDを手動で設定
 
         // サービスメソッドの実行と例外の検証
         assertThrows(EntityNotFoundException.class, () -> stationService.update(nonExistentStation));
@@ -274,14 +274,14 @@ class StationServiceTest {
     @Test
     void deleteById_shouldDeleteStation_whenStationExists() {
         // テストデータの準備
-        StationEntity entity = createTestStationEntity("station-15", "削除対象駅", "owner-10", 200, 10.0, 10.0);
-        stationRepository.save(entity);
+        StationEntity entity = createTestStationEntity("削除対象駅", "owner-10", 200, 10.0, 10.0);
+        StationEntity savedEntity = stationRepository.save(entity);
 
         // サービスメソッドの実行
-        stationService.deleteById("station-15");
+        stationService.deleteById(savedEntity.getId());
 
         // 検証
-        assertThat(stationRepository.findById("station-15")).isEmpty();
+        assertThat(stationRepository.findById(savedEntity.getId())).isEmpty();
     }
 
     /**
@@ -291,11 +291,11 @@ class StationServiceTest {
     @Test
     void existsById_shouldReturnTrue_whenStationExists() {
         // テストデータの準備
-        StationEntity entity = createTestStationEntity("station-16", "存在チェック駅", "owner-11", 150, 20.0, 20.0);
-        stationRepository.save(entity);
+        StationEntity entity = createTestStationEntity("存在チェック駅", "owner-11", 150, 20.0, 20.0);
+        StationEntity savedEntity = stationRepository.save(entity);
 
         // サービスメソッドの実行と検証
-        assertThat(stationService.existsById("station-16")).isTrue();
+        assertThat(stationService.existsById(savedEntity.getId())).isTrue();
     }
 
     /**
@@ -309,10 +309,10 @@ class StationServiceTest {
     }
 
     // ヘルパーメソッド：テスト用のStationドメインモデルを作成
-    private Station createTestStation(String id, String name, String ownerId, Integer totalCapacity,
+    private Station createTestStation(String name, String ownerId, Integer totalCapacity,
                                       Double x, Double y, List<Platform> platforms, List<Gate> gates, List<Corridor> corridors) {
         Station station = new Station();
-        station.setId(id);
+        // IDは自動生成されるため設定しない
         station.setName(name);
         station.setOwnerId(ownerId);
         station.setTotalCapacity(totalCapacity);
@@ -330,20 +330,18 @@ class StationServiceTest {
     }
 
     // ヘルパーメソッド：テスト用のPlatformドメインモデルを作成
-    private Platform createTestPlatform(String id, String stationId, String connectedTrackId, Integer capacity) {
+    private Platform createTestPlatform(String connectedTrackId, Integer capacity) {
         Platform platform = new Platform();
-        platform.setId(id);
-        platform.setStationId(stationId);
+        // IDとstationIdは自動生成または親エンティティから設定されるため設定しない
         platform.setConnectedTrackId(connectedTrackId);
         platform.setCapacity(capacity);
         return platform;
     }
 
     // ヘルパーメソッド：テスト用のGateドメインモデルを作成
-    private Gate createTestGate(String id, String stationId, Integer capacity, Double processingTime, Double x, Double y) {
+    private Gate createTestGate(Integer capacity, Double processingTime, Double x, Double y) {
         Gate gate = new Gate();
-        gate.setId(id);
-        gate.setStationId(stationId);
+        // IDとstationIdは自動生成または親エンティティから設定されるため設定しない
         gate.setCapacity(capacity);
         gate.setProcessingTime(processingTime);
         gate.setPosition(new Location(x, y, 0.0)); // Z座標はデフォルトで0.0
@@ -351,19 +349,18 @@ class StationServiceTest {
     }
 
     // ヘルパーメソッド：テスト用のCorridorドメインモデルを作成
-    private Corridor createTestCorridor(String id, String stationId, Double length, Double width) {
+    private Corridor createTestCorridor(Double length, Double width) {
         Corridor corridor = new Corridor();
-        corridor.setId(id);
-        corridor.setStationId(stationId);
+        // IDとstationIdは自動生成または親エンティティから設定されるため設定しない
         corridor.setLength(length);
         corridor.setWidth(width);
         return corridor;
     }
 
     // ヘルパーメソッド：テスト用のStationEntityを作成
-    private StationEntity createTestStationEntity(String id, String name, String ownerId, Integer totalCapacity, Double x, Double y) {
+    private StationEntity createTestStationEntity(String name, String ownerId, Integer totalCapacity, Double x, Double y) {
         StationEntity entity = new StationEntity();
-        entity.setId(id);
+        // IDは自動生成されるため設定しない
         entity.setName(name);
         entity.setOwnerId(ownerId);
         entity.setTotalCapacity(totalCapacity);

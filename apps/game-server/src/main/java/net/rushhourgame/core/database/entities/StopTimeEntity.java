@@ -4,7 +4,11 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
+import java.io.Serializable;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 
 /**
@@ -15,7 +19,8 @@ import java.time.LocalTime;
 @Data
 @EqualsAndHashCode(of = "id")
 @ToString(exclude = "schedule")
-public class StopTimeEntity {
+public class StopTimeEntity implements Serializable {
+    private static final long serialVersionUID = 1L;
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -36,5 +41,15 @@ public class StopTimeEntity {
     @JoinColumn(name = "schedule_id", nullable = false)
     private ScheduleEntity schedule;
 
-    
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
+
+    @Version
+    @Column(name = "version", nullable = false)
+    private Long version;
 }

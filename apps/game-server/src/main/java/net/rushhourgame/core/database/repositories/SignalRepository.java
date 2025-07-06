@@ -1,6 +1,7 @@
 package net.rushhourgame.core.database.repositories;
 
 import net.rushhourgame.core.database.entities.SignalEntity;
+import net.rushhourgame.models.common.SignalType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -17,7 +18,7 @@ public interface SignalRepository extends JpaRepository<SignalEntity, String> {
     /**
      * 信号タイプで信号機を検索
      */
-    List<SignalEntity> findBySignalType(String signalType);
+    List<SignalEntity> findBySignalType(SignalType signalType);
 
     /**
      * 保護対象線路IDで信号機を検索

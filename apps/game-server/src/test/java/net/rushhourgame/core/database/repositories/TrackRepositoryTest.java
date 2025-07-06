@@ -16,6 +16,7 @@ import net.rushhourgame.core.database.entities.LocationEmbeddable;
 import net.rushhourgame.core.database.entities.Point3DEmbeddable;
 import net.rushhourgame.core.database.entities.SignalEntity;
 import net.rushhourgame.core.database.entities.TrackEntity;
+import net.rushhourgame.models.common.SignalType;
 
 /**
  * TrackRepositoryの統合テストクラス
@@ -44,7 +45,7 @@ class TrackRepositoryTest {
     @Test
     void saveTrack_shouldPersistTrackAndRelatedEntities() {
         // テストデータの準備
-        TrackEntity track = createTestTrackEntity("track-1", "owner-1", 100.0, 120.0, "junction-A", "junction-B");
+        TrackEntity track = createTestTrackEntity("owner-1", 100.0, 120.0, "junction-A", "junction-B");
 
         // 曲線ポイントの追加
         Point3DEmbeddable point1 = createTestPoint3DEmbeddable(1.0, 2.0, 3.0, 0, track);
@@ -52,7 +53,7 @@ class TrackRepositoryTest {
         track.setCurve(Arrays.asList(point1, point2));
 
         // 信号機の追加
-        SignalEntity signal1 = createTestSignalEntity("signal-1", "TYPE_A", track);
+        SignalEntity signal1 = createTestSignalEntity(SignalType.BLOCK, track);
         track.setSignals(Arrays.asList(signal1));
 
         // リポジトリメソッドの実行
@@ -60,12 +61,12 @@ class TrackRepositoryTest {
 
         // 検証
         assertThat(savedTrack).isNotNull();
-        assertThat(savedTrack.getId()).isEqualTo("track-1");
+        assertThat(savedTrack.getId()).isNotNull(); // IDは自動生成される
         assertThat(savedTrack.getCurve()).hasSize(2);
         assertThat(savedTrack.getSignals()).hasSize(1);
 
         // データベースから直接取得して検証
-        Optional<TrackEntity> foundTrack = trackRepository.findById("track-1");
+        Optional<TrackEntity> foundTrack = trackRepository.findById(savedTrack.getId());
         assertThat(foundTrack).isPresent();
         assertThat(foundTrack.get().getCurve()).hasSize(2);
         assertThat(foundTrack.get().getSignals()).hasSize(1);
@@ -78,11 +79,11 @@ class TrackRepositoryTest {
     @Test
     void findById_shouldReturnTrack_whenTrackExists() {
         // テストデータの準備
-        TrackEntity track = createTestTrackEntity("track-2", "owner-2", 200.0, 150.0, null, null);
+        TrackEntity track = createTestTrackEntity("owner-2", 200.0, 150.0, null, null);
         trackRepository.save(track);
 
         // リポジトリメソッドの実行
-        Optional<TrackEntity> foundTrack = trackRepository.findById("track-2");
+        Optional<TrackEntity> foundTrack = trackRepository.findById(track.getId());
 
         // 検証
         assertThat(foundTrack).isPresent();
@@ -109,8 +110,8 @@ class TrackRepositoryTest {
     @Test
     void findAll_shouldReturnAllTracks() {
         // テストデータの準備
-        trackRepository.save(createTestTrackEntity("track-3", "owner-3", 50.0, 80.0, null, null));
-        trackRepository.save(createTestTrackEntity("track-4", "owner-3", 75.0, 90.0, null, null));
+        trackRepository.save(createTestTrackEntity("owner-3", 50.0, 80.0, null, null));
+        trackRepository.save(createTestTrackEntity("owner-3", 75.0, 90.0, null, null));
 
         // リポジトリメソッドの実行
         List<TrackEntity> tracks = trackRepository.findAll();
@@ -126,7 +127,7 @@ class TrackRepositoryTest {
     @Test
     void updateTrack_shouldUpdateExistingTrack() {
         // テストデータの準備
-        TrackEntity originalTrack = createTestTrackEntity("track-5", "owner-4", 150.0, 100.0, null, null);
+        TrackEntity originalTrack = createTestTrackEntity("owner-4", 150.0, 100.0, null, null);
         trackRepository.save(originalTrack);
 
         // 更新データの準備
@@ -141,7 +142,7 @@ class TrackRepositoryTest {
         assertThat(updatedTrack.getMaxSpeed()).isEqualTo(110.0);
 
         // データベースから直接取得して検証
-        Optional<TrackEntity> foundTrack = trackRepository.findById("track-5");
+        Optional<TrackEntity> foundTrack = trackRepository.findById(originalTrack.getId());
         assertThat(foundTrack).isPresent();
         assertThat(foundTrack.get().getLength()).isEqualTo(160.0);
     }
@@ -153,14 +154,14 @@ class TrackRepositoryTest {
     @Test
     void deleteById_shouldDeleteTrack_whenTrackExists() {
         // テストデータの準備
-        TrackEntity track = createTestTrackEntity("track-6", "owner-5", 80.0, 70.0, null, null);
+        TrackEntity track = createTestTrackEntity("owner-5", 80.0, 70.0, null, null);
         trackRepository.save(track);
 
         // リポジトリメソッドの実行
-        trackRepository.deleteById("track-6");
+        trackRepository.deleteById(track.getId());
 
         // 検証
-        assertThat(trackRepository.findById("track-6")).isEmpty();
+        assertThat(trackRepository.findById(track.getId())).isEmpty();
     }
 
     /**
@@ -170,9 +171,9 @@ class TrackRepositoryTest {
     @Test
     void findByOwnerId_shouldReturnTracks_whenTracksExist() {
         // テストデータの準備
-        trackRepository.save(createTestTrackEntity("track-7", "owner-6", 100.0, 100.0, null, null));
-        trackRepository.save(createTestTrackEntity("track-8", "owner-6", 110.0, 110.0, null, null));
-        trackRepository.save(createTestTrackEntity("track-9", "owner-7", 120.0, 120.0, null, null));
+        trackRepository.save(createTestTrackEntity("owner-6", 100.0, 100.0, null, null));
+        trackRepository.save(createTestTrackEntity("owner-6", 110.0, 110.0, null, null));
+        trackRepository.save(createTestTrackEntity("owner-7", 120.0, 120.0, null, null));
 
         // リポジトリメソッドの実行
         List<TrackEntity> tracks = trackRepository.findByOwnerId("owner-6");
@@ -189,16 +190,16 @@ class TrackRepositoryTest {
     @Test
     void findByJunctionId_shouldReturnTracks_whenTracksExist() {
         // テストデータの準備
-        trackRepository.save(createTestTrackEntity("track-10", "owner-8", 100.0, 100.0, "junction-X", "junction-Y"));
-        trackRepository.save(createTestTrackEntity("track-11", "owner-8", 110.0, 110.0, "junction-Y", "junction-Z"));
-        trackRepository.save(createTestTrackEntity("track-12", "owner-8", 120.0, 120.0, "junction-A", "junction-B"));
+        TrackEntity track10 = trackRepository.save(createTestTrackEntity("owner-8", 100.0, 100.0, "junction-X", "junction-Y"));
+        TrackEntity track11 = trackRepository.save(createTestTrackEntity("owner-8", 110.0, 110.0, "junction-Y", "junction-Z"));
+        trackRepository.save(createTestTrackEntity("owner-8", 120.0, 120.0, "junction-A", "junction-B"));
 
         // リポジトリメソッドの実行
         List<TrackEntity> tracks = trackRepository.findByJunctionId("junction-Y");
 
         // 検証
         assertThat(tracks).hasSize(2);
-        assertThat(tracks).extracting(TrackEntity::getId).containsExactlyInAnyOrder("track-10", "track-11");
+        assertThat(tracks).extracting(TrackEntity::getId).containsExactlyInAnyOrder(track10.getId(), track11.getId());
     }
 
     /**
@@ -208,16 +209,16 @@ class TrackRepositoryTest {
     @Test
     void findByMaxSpeedGreaterThanEqual_shouldReturnTracks() {
         // テストデータの準備
-        trackRepository.save(createTestTrackEntity("track-13", "owner-9", 100.0, 100.0, null, null));
-        trackRepository.save(createTestTrackEntity("track-14", "owner-9", 110.0, 120.0, null, null));
-        trackRepository.save(createTestTrackEntity("track-15", "owner-9", 120.0, 90.0, null, null));
+        TrackEntity track13 = trackRepository.save(createTestTrackEntity("owner-9", 100.0, 100.0, null, null));
+        TrackEntity track14 = trackRepository.save(createTestTrackEntity("owner-9", 110.0, 120.0, null, null));
+        trackRepository.save(createTestTrackEntity("owner-9", 120.0, 90.0, null, null));
 
         // リポジトリメソッドの実行
         List<TrackEntity> tracks = trackRepository.findByMaxSpeedGreaterThanEqual(100.0);
 
         // 検証
         assertThat(tracks).hasSize(2);
-        assertThat(tracks).extracting(TrackEntity::getId).containsExactlyInAnyOrder("track-13", "track-14");
+        assertThat(tracks).extracting(TrackEntity::getId).containsExactlyInAnyOrder(track13.getId(), track14.getId());
     }
 
     /**
@@ -227,23 +228,22 @@ class TrackRepositoryTest {
     @Test
     void findByLengthBetween_shouldReturnTracks() {
         // テストデータの準備
-        trackRepository.save(createTestTrackEntity("track-16", "owner-10", 50.0, 100.0, null, null));
-        trackRepository.save(createTestTrackEntity("track-17", "owner-10", 75.0, 100.0, null, null));
-        trackRepository.save(createTestTrackEntity("track-18", "owner-10", 100.0, 100.0, null, null));
-        trackRepository.save(createTestTrackEntity("track-19", "owner-10", 120.0, 100.0, null, null));
+        trackRepository.save(createTestTrackEntity("owner-10", 50.0, 100.0, null, null));
+        TrackEntity track17 = trackRepository.save(createTestTrackEntity("owner-10", 75.0, 100.0, null, null));
+        TrackEntity track18 = trackRepository.save(createTestTrackEntity("owner-10", 100.0, 100.0, null, null));
+        trackRepository.save(createTestTrackEntity("owner-10", 120.0, 100.0, null, null));
 
         // リポジトリメソッドの実行
         List<TrackEntity> tracks = trackRepository.findByLengthBetween(60.0, 110.0);
 
         // 検証
         assertThat(tracks).hasSize(2);
-        assertThat(tracks).extracting(TrackEntity::getId).containsExactlyInAnyOrder("track-17", "track-18");
+        assertThat(tracks).extracting(TrackEntity::getId).containsExactlyInAnyOrder(track17.getId(), track18.getId());
     }
 
     // ヘルパーメソッド：テスト用のTrackEntityを作成
-    private TrackEntity createTestTrackEntity(String id, String ownerId, Double length, Double maxSpeed, String startJunctionId, String endJunctionId) {
+    private TrackEntity createTestTrackEntity(String ownerId, Double length, Double maxSpeed, String startJunctionId, String endJunctionId) {
         TrackEntity entity = new TrackEntity();
-        entity.setId(id);
         entity.setOwnerId(ownerId);
         entity.setLength(length);
         entity.setMaxSpeed(maxSpeed);
@@ -264,9 +264,8 @@ class TrackRepositoryTest {
     }
 
     // ヘルパーメソッド：テスト用のSignalEntityを作成
-    private SignalEntity createTestSignalEntity(String id, String signalType, TrackEntity track) {
+    private SignalEntity createTestSignalEntity(SignalType signalType, TrackEntity track) {
         SignalEntity signal = new SignalEntity();
-        signal.setId(id);
         signal.setSignalType(signalType);
         LocationEmbeddable position = new LocationEmbeddable();
         position.setX(1.0); position.setY(2.0); position.setZ(3.0);

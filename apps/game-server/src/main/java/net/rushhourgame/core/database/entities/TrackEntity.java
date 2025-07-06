@@ -15,13 +15,10 @@ import java.util.List;
 @Entity
 @Table(name = "tracks")
 @Data
-@EqualsAndHashCode(of = "id")
+@EqualsAndHashCode(callSuper = true)
 @ToString(exclude = {"curve", "signals"})
-public class TrackEntity implements Serializable {
+public class TrackEntity extends BaseEntity implements Serializable {
     private static final long serialVersionUID = 1L;
-    @Id
-    @Column(name = "id", nullable = false)
-    private String id;
 
     @Column(name = "owner_id", nullable = false)
     private String ownerId;

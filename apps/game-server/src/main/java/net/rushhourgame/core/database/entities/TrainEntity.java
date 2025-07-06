@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
+import net.rushhourgame.models.common.TrainType;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -15,19 +16,17 @@ import java.util.List;
 @Entity
 @Table(name = "trains")
 @Data
-@EqualsAndHashCode(of = "id")
+@EqualsAndHashCode(callSuper = true)
 @ToString(exclude = {"cars", "schedule"})
-public class TrainEntity implements Serializable {
+public class TrainEntity extends BaseEntity implements Serializable {
     private static final long serialVersionUID = 1L;
-    @Id
-    @Column(name = "id", nullable = false)
-    private String id;
 
     @Column(name = "owner_id", nullable = false)
     private String ownerId;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "train_type", nullable = false)
-    private String trainType;
+    private TrainType trainType;
 
     @Column(name = "group_id")
     private String groupId;

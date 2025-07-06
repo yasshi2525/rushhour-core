@@ -2,6 +2,7 @@ package net.rushhourgame.core.database.repositories;
 
 import net.rushhourgame.core.database.entities.CarEntity;
 import net.rushhourgame.core.database.entities.TrainEntity;
+import net.rushhourgame.models.common.TrainType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,18 +47,18 @@ class CarRepositoryTest {
     @Test
     void saveCar_shouldPersistCar() {
         // テストデータの準備
-        TrainEntity train = createTestTrainEntity("train-1", "owner-1", "EXPRESS", null, 500, 8, true, "route-1");
+        TrainEntity train = createTestTrainEntity("owner-1", TrainType.EXPRESS, null, 500, 8, true, "route-1");
         trainRepository.save(train);
 
-        CarEntity car = createTestCarEntity("car-1", 100, 4, train);
+        CarEntity car = createTestCarEntity(100, 4, train);
 
         // リポジトリメソッドの実行
         CarEntity savedCar = carRepository.save(car);
 
         // 検証
         assertThat(savedCar).isNotNull();
-        assertThat(savedCar.getId()).isEqualTo("car-1");
-        assertThat(savedCar.getTrain().getId()).isEqualTo("train-1");
+        assertThat(savedCar.getId()).isNotNull(); // IDは自動生成される
+        assertThat(savedCar.getTrain().getId()).isEqualTo(train.getId());
     }
 
     /**
@@ -67,13 +68,13 @@ class CarRepositoryTest {
     @Test
     void findById_shouldReturnCar_whenCarExists() {
         // テストデータの準備
-        TrainEntity train = createTestTrainEntity("train-2", "owner-2", "LOCAL", null, 300, 6, false, null);
+        TrainEntity train = createTestTrainEntity("owner-2", TrainType.LOCAL, null, 300, 6, false, null);
         trainRepository.save(train);
-        CarEntity car = createTestCarEntity("car-2", 100, 4, train);
+        CarEntity car = createTestCarEntity(100, 4, train);
         carRepository.save(car);
 
         // リポジトリメソッドの実行
-        Optional<CarEntity> foundCar = carRepository.findById("car-2");
+        Optional<CarEntity> foundCar = carRepository.findById(car.getId());
 
         // 検証
         assertThat(foundCar).isPresent();
@@ -100,12 +101,12 @@ class CarRepositoryTest {
     @Test
     void findAll_shouldReturnAllCars() {
         // テストデータの準備
-        TrainEntity train1 = createTestTrainEntity("train-3", "owner-3", "RAPID", null, 400, 8, true, "route-2");
-        TrainEntity train2 = createTestTrainEntity("train-4", "owner-3", "EXPRESS", null, 600, 10, false, "route-3");
+        TrainEntity train1 = createTestTrainEntity("owner-3", TrainType.RAPID, null, 400, 8, true, "route-2");
+        TrainEntity train2 = createTestTrainEntity("owner-3", TrainType.EXPRESS, null, 600, 10, false, "route-3");
         trainRepository.saveAll(Arrays.asList(train1, train2));
 
-        carRepository.save(createTestCarEntity("car-3", 100, 4, train1));
-        carRepository.save(createTestCarEntity("car-4", 120, 6, train2));
+        carRepository.save(createTestCarEntity(100, 4, train1));
+        carRepository.save(createTestCarEntity(120, 6, train2));
 
         // リポジトリメソッドの実行
         List<CarEntity> cars = carRepository.findAll();
@@ -121,9 +122,9 @@ class CarRepositoryTest {
     @Test
     void updateCar_shouldUpdateExistingCar() {
         // テストデータの準備
-        TrainEntity train = createTestTrainEntity("train-5", "owner-4", "LOCAL", null, 200, 4, false, null);
+        TrainEntity train = createTestTrainEntity("owner-4", TrainType.LOCAL, null, 200, 4, false, null);
         trainRepository.save(train);
-        CarEntity originalCar = createTestCarEntity("car-5", 100, 4, train);
+        CarEntity originalCar = createTestCarEntity(100, 4, train);
         carRepository.save(originalCar);
 
         // 更新データの準備
@@ -138,7 +139,7 @@ class CarRepositoryTest {
         assertThat(updatedCar.getDoorCount()).isEqualTo(5);
 
         // データベースから直接取得して検証
-        Optional<CarEntity> foundCar = carRepository.findById("car-5");
+        Optional<CarEntity> foundCar = carRepository.findById(originalCar.getId());
         assertThat(foundCar).isPresent();
         assertThat(foundCar.get().getCapacity()).isEqualTo(110);
     }
@@ -150,16 +151,16 @@ class CarRepositoryTest {
     @Test
     void deleteById_shouldDeleteCar_whenCarExists() {
         // テストデータの準備
-        TrainEntity train = createTestTrainEntity("train-6", "owner-5", "LOCAL", null, 150, 4, true, null);
+        TrainEntity train = createTestTrainEntity("owner-5", TrainType.LOCAL, null, 150, 4, true, null);
         trainRepository.save(train);
-        CarEntity car = createTestCarEntity("car-6", 100, 4, train);
+        CarEntity car = createTestCarEntity(100, 4, train);
         carRepository.save(car);
 
         // リポジトリメソッドの実行
-        carRepository.deleteById("car-6");
+        carRepository.deleteById(car.getId());
 
         // 検証
-        assertThat(carRepository.findById("car-6")).isEmpty();
+        assertThat(carRepository.findById(car.getId())).isEmpty();
     }
 
     /**
@@ -169,20 +170,20 @@ class CarRepositoryTest {
     @Test
     void findByTrain_Id_shouldReturnCars_whenCarsExist() {
         // テストデータの準備
-        TrainEntity trainA = createTestTrainEntity("train-A", "owner-6", "EXPRESS", null, 500, 8, true, "route-4");
-        TrainEntity trainB = createTestTrainEntity("train-B", "owner-6", "LOCAL", null, 300, 6, false, null);
+        TrainEntity trainA = createTestTrainEntity("owner-6", TrainType.EXPRESS, null, 500, 8, true, "route-4");
+        TrainEntity trainB = createTestTrainEntity("owner-6", TrainType.LOCAL, null, 300, 6, false, null);
         trainRepository.saveAll(Arrays.asList(trainA, trainB));
 
-        carRepository.save(createTestCarEntity("car-7", 100, 4, trainA));
-        carRepository.save(createTestCarEntity("car-8", 120, 6, trainB));
-        carRepository.save(createTestCarEntity("car-9", 110, 5, trainA));
+        CarEntity car7 = carRepository.save(createTestCarEntity(100, 4, trainA));
+        carRepository.save(createTestCarEntity(120, 6, trainB));
+        CarEntity car9 = carRepository.save(createTestCarEntity(110, 5, trainA));
 
         // リポジトリメソッドの実行
-        List<CarEntity> cars = carRepository.findByTrain_Id("train-A");
+        List<CarEntity> cars = carRepository.findByTrain_Id(trainA.getId());
 
         // 検証
         assertThat(cars).hasSize(2);
-        assertThat(cars).extracting(CarEntity::getId).containsExactlyInAnyOrder("car-7", "car-9");
+        assertThat(cars).extracting(CarEntity::getId).containsExactlyInAnyOrder(car7.getId(), car9.getId());
     }
 
     /**
@@ -192,19 +193,19 @@ class CarRepositoryTest {
     @Test
     void findByCapacityGreaterThanEqual_shouldReturnCars() {
         // テストデータの準備
-        TrainEntity train = createTestTrainEntity("train-7", "owner-7", "EXPRESS", null, 500, 8, true, "route-5");
+        TrainEntity train = createTestTrainEntity("owner-7", TrainType.EXPRESS, null, 500, 8, true, "route-5");
         trainRepository.save(train);
 
-        carRepository.save(createTestCarEntity("car-10", 90, 4, train));
-        carRepository.save(createTestCarEntity("car-11", 100, 4, train));
-        carRepository.save(createTestCarEntity("car-12", 110, 4, train));
+        carRepository.save(createTestCarEntity(90, 4, train));
+        CarEntity car11 = carRepository.save(createTestCarEntity(100, 4, train));
+        CarEntity car12 = carRepository.save(createTestCarEntity(110, 4, train));
 
         // リポジトリメソッドの実行
         List<CarEntity> cars = carRepository.findByCapacityGreaterThanEqual(100);
 
         // 検証
         assertThat(cars).hasSize(2);
-        assertThat(cars).extracting(CarEntity::getId).containsExactlyInAnyOrder("car-11", "car-12");
+        assertThat(cars).extracting(CarEntity::getId).containsExactlyInAnyOrder(car11.getId(), car12.getId());
     }
 
     /**
@@ -214,25 +215,24 @@ class CarRepositoryTest {
     @Test
     void findByDoorCount_shouldReturnCars() {
         // テストデータの準備
-        TrainEntity train = createTestTrainEntity("train-8", "owner-8", "LOCAL", null, 300, 6, false, null);
+        TrainEntity train = createTestTrainEntity("owner-8", TrainType.LOCAL, null, 300, 6, false, null);
         trainRepository.save(train);
 
-        carRepository.save(createTestCarEntity("car-13", 100, 4, train));
-        carRepository.save(createTestCarEntity("car-14", 100, 6, train));
-        carRepository.save(createTestCarEntity("car-15", 100, 4, train));
+        CarEntity car13 = carRepository.save(createTestCarEntity(100, 4, train));
+        carRepository.save(createTestCarEntity(100, 6, train));
+        CarEntity car15 = carRepository.save(createTestCarEntity(100, 4, train));
 
         // リポジトリメソッドの実行
         List<CarEntity> cars = carRepository.findByDoorCount(4);
 
         // 検証
         assertThat(cars).hasSize(2);
-        assertThat(cars).extracting(CarEntity::getId).containsExactlyInAnyOrder("car-13", "car-15");
+        assertThat(cars).extracting(CarEntity::getId).containsExactlyInAnyOrder(car13.getId(), car15.getId());
     }
 
     // ヘルパーメソッド：テスト用のTrainEntityを作成
-    private TrainEntity createTestTrainEntity(String id, String ownerId, String trainType, String groupId, Integer totalCapacity, Integer doorCount, Boolean isPlayerControlled, String assignedRouteId) {
+    private TrainEntity createTestTrainEntity(String ownerId, TrainType trainType, String groupId, Integer totalCapacity, Integer doorCount, Boolean isPlayerControlled, String assignedRouteId) {
         TrainEntity entity = new TrainEntity();
-        entity.setId(id);
         entity.setOwnerId(ownerId);
         entity.setTrainType(trainType);
         entity.setGroupId(groupId);
@@ -244,9 +244,8 @@ class CarRepositoryTest {
     }
 
     // ヘルパーメソッド：テスト用のCarEntityを作成
-    private CarEntity createTestCarEntity(String id, Integer capacity, Integer doorCount, TrainEntity train) {
+    private CarEntity createTestCarEntity(Integer capacity, Integer doorCount, TrainEntity train) {
         CarEntity car = new CarEntity();
-        car.setId(id);
         car.setCapacity(capacity);
         car.setDoorCount(doorCount);
         car.setTrain(train);

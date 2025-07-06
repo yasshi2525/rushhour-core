@@ -3,6 +3,7 @@ package net.rushhourgame.core.database.repositories;
 import net.rushhourgame.core.database.entities.LocationEmbeddable;
 import net.rushhourgame.core.database.entities.SignalEntity;
 import net.rushhourgame.core.database.entities.TrackEntity;
+import net.rushhourgame.models.common.SignalType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,10 +48,10 @@ class SignalRepositoryTest {
     @Test
     void saveSignal_shouldPersistSignal() {
         // テストデータの準備
-        TrackEntity track = createTestTrackEntity("track-1", "owner-1", 100.0, 120.0, null, null);
+        TrackEntity track = createTestTrackEntity("owner-1", 100.0, 120.0, null, null);
         trackRepository.save(track);
 
-        SignalEntity signal = createTestSignalEntity("signal-1", "BLOCK", track);
+        SignalEntity signal = createTestSignalEntity(SignalType.BLOCK, track);
         signal.setProtectedTrackIds(Arrays.asList("protected-track-1", "protected-track-2"));
 
         // リポジトリメソッドの実行
@@ -58,11 +59,11 @@ class SignalRepositoryTest {
 
         // 検証
         assertThat(savedSignal).isNotNull();
-        assertThat(savedSignal.getId()).isEqualTo("signal-1");
+        assertThat(savedSignal.getId()).isNotNull(); // IDは自動生成される
         assertThat(savedSignal.getProtectedTrackIds()).hasSize(2);
 
         // データベースから直接取得して検証
-        Optional<SignalEntity> foundSignal = signalRepository.findById("signal-1");
+        Optional<SignalEntity> foundSignal = signalRepository.findById(savedSignal.getId());
         assertThat(foundSignal).isPresent();
         assertThat(foundSignal.get().getProtectedTrackIds()).hasSize(2);
     }
@@ -74,17 +75,17 @@ class SignalRepositoryTest {
     @Test
     void findById_shouldReturnSignal_whenSignalExists() {
         // テストデータの準備
-        TrackEntity track = createTestTrackEntity("track-2", "owner-2", 100.0, 120.0, null, null);
+        TrackEntity track = createTestTrackEntity("owner-2", 100.0, 120.0, null, null);
         trackRepository.save(track);
-        SignalEntity signal = createTestSignalEntity("signal-2", "PATH", track);
+        SignalEntity signal = createTestSignalEntity(SignalType.PATH, track);
         signalRepository.save(signal);
 
         // リポジトリメソッドの実行
-        Optional<SignalEntity> foundSignal = signalRepository.findById("signal-2");
+        Optional<SignalEntity> foundSignal = signalRepository.findById(signal.getId());
 
         // 検証
         assertThat(foundSignal).isPresent();
-        assertThat(foundSignal.get().getSignalType()).isEqualTo("PATH");
+        assertThat(foundSignal.get().getSignalType()).isEqualTo(SignalType.PATH);
     }
 
     /**
@@ -107,12 +108,12 @@ class SignalRepositoryTest {
     @Test
     void findAll_shouldReturnAllSignals() {
         // テストデータの準備
-        TrackEntity track1 = createTestTrackEntity("track-3", "owner-3", 100.0, 120.0, null, null);
-        TrackEntity track2 = createTestTrackEntity("track-4", "owner-3", 100.0, 120.0, null, null);
+        TrackEntity track1 = createTestTrackEntity("owner-3", 100.0, 120.0, null, null);
+        TrackEntity track2 = createTestTrackEntity("owner-3", 100.0, 120.0, null, null);
         trackRepository.saveAll(Arrays.asList(track1, track2));
 
-        signalRepository.save(createTestSignalEntity("signal-3", "BLOCK", track1));
-        signalRepository.save(createTestSignalEntity("signal-4", "PATH", track2));
+        signalRepository.save(createTestSignalEntity(SignalType.BLOCK, track1));
+        signalRepository.save(createTestSignalEntity(SignalType.PATH, track2));
 
         // リポジトリメソッドの実行
         List<SignalEntity> signals = signalRepository.findAll();
@@ -128,13 +129,13 @@ class SignalRepositoryTest {
     @Test
     void updateSignal_shouldUpdateExistingSignal() {
         // テストデータの準備
-        TrackEntity track = createTestTrackEntity("track-5", "owner-4", 100.0, 120.0, null, null);
+        TrackEntity track = createTestTrackEntity("owner-4", 100.0, 120.0, null, null);
         trackRepository.save(track);
-        SignalEntity originalSignal = createTestSignalEntity("signal-5", "BLOCK", track);
+        SignalEntity originalSignal = createTestSignalEntity(SignalType.BLOCK, track);
         signalRepository.save(originalSignal);
 
         // 更新データの準備
-        originalSignal.setSignalType("ABSOLUTE");
+        originalSignal.setSignalType(SignalType.ABSOLUTE);
         LocationEmbeddable newPosition = new LocationEmbeddable();
         newPosition.setX(10.0); newPosition.setY(20.0); newPosition.setZ(30.0);
         originalSignal.setPosition(newPosition);
@@ -143,13 +144,13 @@ class SignalRepositoryTest {
         SignalEntity updatedSignal = signalRepository.save(originalSignal);
 
         // 検証
-        assertThat(updatedSignal.getSignalType()).isEqualTo("ABSOLUTE");
+        assertThat(updatedSignal.getSignalType()).isEqualTo(SignalType.ABSOLUTE);
         assertThat(updatedSignal.getPosition().getX()).isEqualTo(10.0);
 
         // データベースから直接取得して検証
-        Optional<SignalEntity> foundSignal = signalRepository.findById("signal-5");
+        Optional<SignalEntity> foundSignal = signalRepository.findById(originalSignal.getId());
         assertThat(foundSignal).isPresent();
-        assertThat(foundSignal.get().getSignalType()).isEqualTo("ABSOLUTE");
+        assertThat(foundSignal.get().getSignalType()).isEqualTo(SignalType.ABSOLUTE);
     }
 
     /**
@@ -159,16 +160,16 @@ class SignalRepositoryTest {
     @Test
     void deleteById_shouldDeleteSignal_whenSignalExists() {
         // テストデータの準備
-        TrackEntity track = createTestTrackEntity("track-6", "owner-5", 100.0, 120.0, null, null);
+        TrackEntity track = createTestTrackEntity("owner-5", 100.0, 120.0, null, null);
         trackRepository.save(track);
-        SignalEntity signal = createTestSignalEntity("signal-6", "BLOCK", track);
+        SignalEntity signal = createTestSignalEntity(SignalType.BLOCK, track);
         signalRepository.save(signal);
 
         // リポジトリメソッドの実行
-        signalRepository.deleteById("signal-6");
+        signalRepository.deleteById(signal.getId());
 
         // 検証
-        assertThat(signalRepository.findById("signal-6")).isEmpty();
+        assertThat(signalRepository.findById(signal.getId())).isEmpty();
     }
 
     /**
@@ -178,20 +179,20 @@ class SignalRepositoryTest {
     @Test
     void findBySignalType_shouldReturnSignals_whenSignalsExist() {
         // テストデータの準備
-        TrackEntity track1 = createTestTrackEntity("track-7", "owner-6", 100.0, 120.0, null, null);
-        TrackEntity track2 = createTestTrackEntity("track-8", "owner-6", 100.0, 120.0, null, null);
+        TrackEntity track1 = createTestTrackEntity("owner-6", 100.0, 120.0, null, null);
+        TrackEntity track2 = createTestTrackEntity("owner-6", 100.0, 120.0, null, null);
         trackRepository.saveAll(Arrays.asList(track1, track2));
 
-        signalRepository.save(createTestSignalEntity("signal-7", "BLOCK", track1));
-        signalRepository.save(createTestSignalEntity("signal-8", "PATH", track2));
-        signalRepository.save(createTestSignalEntity("signal-9", "BLOCK", track1));
+        signalRepository.save(createTestSignalEntity(SignalType.BLOCK, track1));
+        signalRepository.save(createTestSignalEntity(SignalType.PATH, track2));
+        signalRepository.save(createTestSignalEntity(SignalType.BLOCK, track1));
 
         // リポジトリメソッドの実行
-        List<SignalEntity> signals = signalRepository.findBySignalType("BLOCK");
+        List<SignalEntity> signals = signalRepository.findBySignalType(SignalType.BLOCK);
 
         // 検証
         assertThat(signals).hasSize(2);
-        assertThat(signals).extracting(SignalEntity::getSignalType).containsOnly("BLOCK");
+        assertThat(signals).extracting(SignalEntity::getSignalType).containsOnly(SignalType.BLOCK);
     }
 
     /**
@@ -201,15 +202,15 @@ class SignalRepositoryTest {
     @Test
     void findByProtectedTrackIdsContaining_shouldReturnSignals() {
         // テストデータの準備
-        TrackEntity track1 = createTestTrackEntity("track-9", "owner-7", 100.0, 120.0, null, null);
-        TrackEntity track2 = createTestTrackEntity("track-10", "owner-7", 100.0, 120.0, null, null);
+        TrackEntity track1 = createTestTrackEntity("owner-7", 100.0, 120.0, null, null);
+        TrackEntity track2 = createTestTrackEntity("owner-7", 100.0, 120.0, null, null);
         trackRepository.saveAll(Arrays.asList(track1, track2));
 
-        SignalEntity signal1 = createTestSignalEntity("signal-10", "BLOCK", track1);
+        SignalEntity signal1 = createTestSignalEntity(SignalType.BLOCK, track1);
         signal1.setProtectedTrackIds(Arrays.asList("p-track-A", "p-track-B"));
         signalRepository.save(signal1);
 
-        SignalEntity signal2 = createTestSignalEntity("signal-11", "PATH", track2);
+        SignalEntity signal2 = createTestSignalEntity(SignalType.PATH, track2);
         signal2.setProtectedTrackIds(Arrays.asList("p-track-B", "p-track-C"));
         signalRepository.save(signal2);
 
@@ -218,7 +219,7 @@ class SignalRepositoryTest {
 
         // 検証
         assertThat(signals).hasSize(2);
-        assertThat(signals).extracting(SignalEntity::getId).containsExactlyInAnyOrder("signal-10", "signal-11");
+        assertThat(signals).extracting(SignalEntity::getId).containsExactlyInAnyOrder(signal1.getId(), signal2.getId());
     }
 
     /**
@@ -228,26 +229,25 @@ class SignalRepositoryTest {
     @Test
     void findByTrack_Id_shouldReturnSignals() {
         // テストデータの準備
-        TrackEntity trackA = createTestTrackEntity("track-A", "owner-8", 100.0, 120.0, null, null);
-        TrackEntity trackB = createTestTrackEntity("track-B", "owner-8", 100.0, 120.0, null, null);
+        TrackEntity trackA = createTestTrackEntity("owner-8", 100.0, 120.0, null, null);
+        TrackEntity trackB = createTestTrackEntity("owner-8", 100.0, 120.0, null, null);
         trackRepository.saveAll(Arrays.asList(trackA, trackB));
 
-        signalRepository.save(createTestSignalEntity("signal-12", "BLOCK", trackA));
-        signalRepository.save(createTestSignalEntity("signal-13", "PATH", trackB));
-        signalRepository.save(createTestSignalEntity("signal-14", "BLOCK", trackA));
+        SignalEntity signal12 = signalRepository.save(createTestSignalEntity(SignalType.BLOCK, trackA));
+        signalRepository.save(createTestSignalEntity(SignalType.PATH, trackB));
+        SignalEntity signal14 = signalRepository.save(createTestSignalEntity(SignalType.BLOCK, trackA));
 
         // リポジトリメソッドの実行
-        List<SignalEntity> signals = signalRepository.findByTrack_Id("track-A");
+        List<SignalEntity> signals = signalRepository.findByTrack_Id(trackA.getId());
 
         // 検証
         assertThat(signals).hasSize(2);
-        assertThat(signals).extracting(SignalEntity::getId).containsExactlyInAnyOrder("signal-12", "signal-14");
+        assertThat(signals).extracting(SignalEntity::getId).containsExactlyInAnyOrder(signal12.getId(), signal14.getId());
     }
 
     // ヘルパーメソッド：テスト用のTrackEntityを作成
-    private TrackEntity createTestTrackEntity(String id, String ownerId, Double length, Double maxSpeed, String startJunctionId, String endJunctionId) {
+    private TrackEntity createTestTrackEntity(String ownerId, Double length, Double maxSpeed, String startJunctionId, String endJunctionId) {
         TrackEntity entity = new TrackEntity();
-        entity.setId(id);
         entity.setOwnerId(ownerId);
         entity.setLength(length);
         entity.setMaxSpeed(maxSpeed);
@@ -257,9 +257,8 @@ class SignalRepositoryTest {
     }
 
     // ヘルパーメソッド：テスト用のSignalEntityを作成
-    private SignalEntity createTestSignalEntity(String id, String signalType, TrackEntity track) {
+    private SignalEntity createTestSignalEntity(SignalType signalType, TrackEntity track) {
         SignalEntity signal = new SignalEntity();
-        signal.setId(id);
         signal.setSignalType(signalType);
         LocationEmbeddable position = new LocationEmbeddable();
         position.setX(1.0); position.setY(2.0); position.setZ(3.0);

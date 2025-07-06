@@ -47,18 +47,18 @@ class GateRepositoryTest {
     @Test
     void saveGate_shouldPersistGate() {
         // テストデータの準備
-        StationEntity station = createTestStationEntity("station-1", "駅1", "owner-1", 1000, 1.0, 2.0);
+        StationEntity station = createTestStationEntity("駅1", "owner-1", 1000, 1.0, 2.0);
         stationRepository.save(station);
 
-        GateEntity gate = createTestGateEntity("gate-1", 100, 5.0, station);
+        GateEntity gate = createTestGateEntity(100, 5.0, station);
 
         // リポジトリメソッドの実行
         GateEntity savedGate = gateRepository.save(gate);
 
         // 検証
         assertThat(savedGate).isNotNull();
-        assertThat(savedGate.getId()).isEqualTo("gate-1");
-        assertThat(savedGate.getStation().getId()).isEqualTo("station-1");
+        assertThat(savedGate.getId()).isNotNull(); // IDは自動生成される
+        assertThat(savedGate.getStation().getId()).isEqualTo(station.getId());
     }
 
     /**
@@ -68,13 +68,13 @@ class GateRepositoryTest {
     @Test
     void findById_shouldReturnGate_whenGateExists() {
         // テストデータの準備
-        StationEntity station = createTestStationEntity("station-2", "駅2", "owner-2", 1000, 1.0, 2.0);
+        StationEntity station = createTestStationEntity("駅2", "owner-2", 1000, 1.0, 2.0);
         stationRepository.save(station);
-        GateEntity gate = createTestGateEntity("gate-2", 100, 5.0, station);
+        GateEntity gate = createTestGateEntity(100, 5.0, station);
         gateRepository.save(gate);
 
         // リポジトリメソッドの実行
-        Optional<GateEntity> foundGate = gateRepository.findById("gate-2");
+        Optional<GateEntity> foundGate = gateRepository.findById(gate.getId());
 
         // 検証
         assertThat(foundGate).isPresent();
@@ -101,12 +101,12 @@ class GateRepositoryTest {
     @Test
     void findAll_shouldReturnAllGates() {
         // テストデータの準備
-        StationEntity station1 = createTestStationEntity("station-3", "駅3", "owner-3", 1000, 1.0, 2.0);
-        StationEntity station2 = createTestStationEntity("station-4", "駅4", "owner-3", 1000, 1.0, 2.0);
+        StationEntity station1 = createTestStationEntity("駅3", "owner-3", 1000, 1.0, 2.0);
+        StationEntity station2 = createTestStationEntity("駅4", "owner-3", 1000, 1.0, 2.0);
         stationRepository.saveAll(Arrays.asList(station1, station2));
 
-        gateRepository.save(createTestGateEntity("gate-3", 100, 5.0, station1));
-        gateRepository.save(createTestGateEntity("gate-4", 120, 6.0, station2));
+        gateRepository.save(createTestGateEntity(100, 5.0, station1));
+        gateRepository.save(createTestGateEntity(120, 6.0, station2));
 
         // リポジトリメソッドの実行
         List<GateEntity> gates = gateRepository.findAll();
@@ -122,9 +122,9 @@ class GateRepositoryTest {
     @Test
     void updateGate_shouldUpdateExistingGate() {
         // テストデータの準備
-        StationEntity station = createTestStationEntity("station-5", "駅5", "owner-4", 1000, 1.0, 2.0);
+        StationEntity station = createTestStationEntity("駅5", "owner-4", 1000, 1.0, 2.0);
         stationRepository.save(station);
-        GateEntity originalGate = createTestGateEntity("gate-5", 100, 5.0, station);
+        GateEntity originalGate = createTestGateEntity(100, 5.0, station);
         gateRepository.save(originalGate);
 
         // 更新データの準備
@@ -139,7 +139,7 @@ class GateRepositoryTest {
         assertThat(updatedGate.getProcessingTime()).isEqualTo(4.5);
 
         // データベースから直接取得して検証
-        Optional<GateEntity> foundGate = gateRepository.findById("gate-5");
+        Optional<GateEntity> foundGate = gateRepository.findById(originalGate.getId());
         assertThat(foundGate).isPresent();
         assertThat(foundGate.get().getCapacity()).isEqualTo(150);
     }
@@ -151,16 +151,16 @@ class GateRepositoryTest {
     @Test
     void deleteById_shouldDeleteGate_whenGateExists() {
         // テストデータの準備
-        StationEntity station = createTestStationEntity("station-6", "駅6", "owner-5", 1000, 1.0, 2.0);
+        StationEntity station = createTestStationEntity("駅6", "owner-5", 1000, 1.0, 2.0);
         stationRepository.save(station);
-        GateEntity gate = createTestGateEntity("gate-6", 100, 5.0, station);
+        GateEntity gate = createTestGateEntity(100, 5.0, station);
         gateRepository.save(gate);
 
         // リポジトリメソッドの実行
-        gateRepository.deleteById("gate-6");
+        gateRepository.deleteById(gate.getId());
 
         // 検証
-        assertThat(gateRepository.findById("gate-6")).isEmpty();
+        assertThat(gateRepository.findById(gate.getId())).isEmpty();
     }
 
     /**
@@ -170,20 +170,20 @@ class GateRepositoryTest {
     @Test
     void findByStation_Id_shouldReturnGates_whenGatesExist() {
         // テストデータの準備
-        StationEntity stationA = createTestStationEntity("station-A", "駅A", "owner-6", 1000, 1.0, 2.0);
-        StationEntity stationB = createTestStationEntity("station-B", "駅B", "owner-6", 1000, 1.0, 2.0);
+        StationEntity stationA = createTestStationEntity("駅A", "owner-6", 1000, 1.0, 2.0);
+        StationEntity stationB = createTestStationEntity("駅B", "owner-6", 1000, 1.0, 2.0);
         stationRepository.saveAll(Arrays.asList(stationA, stationB));
 
-        gateRepository.save(createTestGateEntity("gate-7", 100, 5.0, stationA));
-        gateRepository.save(createTestGateEntity("gate-8", 120, 6.0, stationB));
-        gateRepository.save(createTestGateEntity("gate-9", 110, 5.5, stationA));
+        GateEntity gate7 = gateRepository.save(createTestGateEntity(100, 5.0, stationA));
+        gateRepository.save(createTestGateEntity(120, 6.0, stationB));
+        GateEntity gate9 = gateRepository.save(createTestGateEntity(110, 5.5, stationA));
 
         // リポジトリメソッドの実行
-        List<GateEntity> gates = gateRepository.findByStation_Id("station-A");
+        List<GateEntity> gates = gateRepository.findByStation_Id(stationA.getId());
 
         // 検証
         assertThat(gates).hasSize(2);
-        assertThat(gates).extracting(GateEntity::getId).containsExactlyInAnyOrder("gate-7", "gate-9");
+        assertThat(gates).extracting(GateEntity::getId).containsExactlyInAnyOrder(gate7.getId(), gate9.getId());
     }
 
     /**
@@ -193,19 +193,19 @@ class GateRepositoryTest {
     @Test
     void findByProcessingTimeGreaterThanEqual_shouldReturnGates() {
         // テストデータの準備
-        StationEntity station = createTestStationEntity("station-7", "駅7", "owner-7", 1000, 1.0, 2.0);
+        StationEntity station = createTestStationEntity("駅7", "owner-7", 1000, 1.0, 2.0);
         stationRepository.save(station);
 
-        gateRepository.save(createTestGateEntity("gate-10", 100, 5.0, station));
-        gateRepository.save(createTestGateEntity("gate-11", 120, 6.0, station));
-        gateRepository.save(createTestGateEntity("gate-12", 90, 4.0, station));
+        GateEntity gate10 = gateRepository.save(createTestGateEntity(100, 5.0, station));
+        GateEntity gate11 = gateRepository.save(createTestGateEntity(120, 6.0, station));
+        gateRepository.save(createTestGateEntity(90, 4.0, station));
 
         // リポジトリメソッドの実行
         List<GateEntity> gates = gateRepository.findByProcessingTimeGreaterThanEqual(5.0);
 
         // 検証
         assertThat(gates).hasSize(2);
-        assertThat(gates).extracting(GateEntity::getId).containsExactlyInAnyOrder("gate-10", "gate-11");
+        assertThat(gates).extracting(GateEntity::getId).containsExactlyInAnyOrder(gate10.getId(), gate11.getId());
     }
 
     /**
@@ -215,26 +215,25 @@ class GateRepositoryTest {
     @Test
     void findByCapacityBetween_shouldReturnGates() {
         // テストデータの準備
-        StationEntity station = createTestStationEntity("station-8", "駅8", "owner-8", 1000, 1.0, 2.0);
+        StationEntity station = createTestStationEntity("駅8", "owner-8", 1000, 1.0, 2.0);
         stationRepository.save(station);
 
-        gateRepository.save(createTestGateEntity("gate-13", 80, 5.0, station));
-        gateRepository.save(createTestGateEntity("gate-14", 100, 5.0, station));
-        gateRepository.save(createTestGateEntity("gate-15", 120, 5.0, station));
-        gateRepository.save(createTestGateEntity("gate-16", 150, 5.0, station));
+        gateRepository.save(createTestGateEntity(80, 5.0, station));
+        GateEntity gate14 = gateRepository.save(createTestGateEntity(100, 5.0, station));
+        GateEntity gate15 = gateRepository.save(createTestGateEntity(120, 5.0, station));
+        gateRepository.save(createTestGateEntity(150, 5.0, station));
 
         // リポジトリメソッドの実行
         List<GateEntity> gates = gateRepository.findByCapacityBetween(90, 130);
 
         // 検証
         assertThat(gates).hasSize(2);
-        assertThat(gates).extracting(GateEntity::getId).containsExactlyInAnyOrder("gate-14", "gate-15");
+        assertThat(gates).extracting(GateEntity::getId).containsExactlyInAnyOrder(gate14.getId(), gate15.getId());
     }
 
     // ヘルパーメソッド：テスト用のStationEntityを作成
-    private StationEntity createTestStationEntity(String id, String name, String ownerId, Integer totalCapacity, Double x, Double y) {
+    private StationEntity createTestStationEntity(String name, String ownerId, Integer totalCapacity, Double x, Double y) {
         StationEntity entity = new StationEntity();
-        entity.setId(id);
         entity.setName(name);
         entity.setOwnerId(ownerId);
         entity.setTotalCapacity(totalCapacity);
@@ -247,9 +246,8 @@ class GateRepositoryTest {
     }
 
     // ヘルパーメソッド：テスト用のGateEntityを作成
-    private GateEntity createTestGateEntity(String id, Integer capacity, Double processingTime, StationEntity station) {
+    private GateEntity createTestGateEntity(Integer capacity, Double processingTime, StationEntity station) {
         GateEntity gate = new GateEntity();
-        gate.setId(id);
         gate.setCapacity(capacity);
         gate.setProcessingTime(processingTime);
         LocationEmbeddable position = new LocationEmbeddable();

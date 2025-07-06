@@ -3,6 +3,7 @@ package net.rushhourgame.core.database.repositories;
 import net.rushhourgame.core.database.entities.ScheduleEntity;
 import net.rushhourgame.core.database.entities.StopTimeEntity;
 import net.rushhourgame.core.database.entities.TrainEntity;
+import net.rushhourgame.models.common.TrainType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,9 +53,9 @@ class StopTimeRepositoryTest {
     @Test
     void saveStopTime_shouldPersistStopTime() {
         // テストデータの準備
-        TrainEntity train = createTestTrainEntity("train-1", "owner-1", "EXPRESS", null, 500, 8, true, "route-1");
+        TrainEntity train = createTestTrainEntity("owner-1", TrainType.EXPRESS, null, 500, 8, true, "route-1");
         trainRepository.save(train);
-        ScheduleEntity schedule = createTestScheduleEntity("schedule-1", "route-1", train);
+        ScheduleEntity schedule = createTestScheduleEntity("route-1", train);
         scheduleRepository.save(schedule);
 
         StopTimeEntity stopTime = createTestStopTimeEntity("station-1", LocalTime.of(9, 0), LocalTime.of(9, 5), 1, schedule);
@@ -66,7 +67,7 @@ class StopTimeRepositoryTest {
         assertThat(savedStopTime).isNotNull();
         assertThat(savedStopTime.getId()).isNotNull(); // IDは自動生成される
         assertThat(savedStopTime.getStationId()).isEqualTo("station-1");
-        assertThat(savedStopTime.getSchedule().getId()).isEqualTo("schedule-1");
+        assertThat(savedStopTime.getSchedule().getId()).isEqualTo(schedule.getId());
     }
 
     /**
@@ -76,9 +77,9 @@ class StopTimeRepositoryTest {
     @Test
     void findById_shouldReturnStopTime_whenStopTimeExists() {
         // テストデータの準備
-        TrainEntity train = createTestTrainEntity("train-2", "owner-2", "LOCAL", null, 300, 6, false, null);
+        TrainEntity train = createTestTrainEntity("owner-2", TrainType.LOCAL, null, 300, 6, false, null);
         trainRepository.save(train);
-        ScheduleEntity schedule = createTestScheduleEntity("schedule-2", "route-2", train);
+        ScheduleEntity schedule = createTestScheduleEntity("route-2", train);
         scheduleRepository.save(schedule);
         StopTimeEntity stopTime = createTestStopTimeEntity("station-2", LocalTime.of(10, 0), LocalTime.of(10, 2), 1, schedule);
         stopTimeRepository.save(stopTime);
@@ -111,11 +112,11 @@ class StopTimeRepositoryTest {
     @Test
     void findAll_shouldReturnAllStopTimes() {
         // テストデータの準備
-        TrainEntity train1 = createTestTrainEntity("train-3", "owner-3", "RAPID", null, 400, 8, true, "route-3");
-        TrainEntity train2 = createTestTrainEntity("train-4", "owner-3", "EXPRESS", null, 600, 10, false, "route-4");
+        TrainEntity train1 = createTestTrainEntity("owner-3", TrainType.RAPID, null, 400, 8, true, "route-3");
+        TrainEntity train2 = createTestTrainEntity("owner-3", TrainType.EXPRESS, null, 600, 10, false, "route-4");
         trainRepository.saveAll(Arrays.asList(train1, train2));
-        ScheduleEntity schedule1 = createTestScheduleEntity("schedule-3", "route-3", train1);
-        ScheduleEntity schedule2 = createTestScheduleEntity("schedule-4", "route-4", train2);
+        ScheduleEntity schedule1 = createTestScheduleEntity("route-3", train1);
+        ScheduleEntity schedule2 = createTestScheduleEntity("route-4", train2);
         scheduleRepository.saveAll(Arrays.asList(schedule1, schedule2));
 
         stopTimeRepository.save(createTestStopTimeEntity("station-3", LocalTime.of(11, 0), LocalTime.of(11, 1), 1, schedule1));
@@ -135,9 +136,9 @@ class StopTimeRepositoryTest {
     @Test
     void updateStopTime_shouldUpdateExistingStopTime() {
         // テストデータの準備
-        TrainEntity train = createTestTrainEntity("train-5", "owner-4", "LOCAL", null, 200, 4, false, null);
+        TrainEntity train = createTestTrainEntity("owner-4", TrainType.LOCAL, null, 200, 4, false, null);
         trainRepository.save(train);
-        ScheduleEntity schedule = createTestScheduleEntity("schedule-5", "route-5", train);
+        ScheduleEntity schedule = createTestScheduleEntity("route-5", train);
         scheduleRepository.save(schedule);
         StopTimeEntity originalStopTime = createTestStopTimeEntity("station-5", LocalTime.of(13, 0), LocalTime.of(13, 1), 1, schedule);
         stopTimeRepository.save(originalStopTime);
@@ -166,9 +167,9 @@ class StopTimeRepositoryTest {
     @Test
     void deleteById_shouldDeleteStopTime_whenStopTimeExists() {
         // テストデータの準備
-        TrainEntity train = createTestTrainEntity("train-6", "owner-5", "LOCAL", null, 150, 4, true, null);
+        TrainEntity train = createTestTrainEntity("owner-5", TrainType.LOCAL, null, 150, 4, true, null);
         trainRepository.save(train);
-        ScheduleEntity schedule = createTestScheduleEntity("schedule-6", "route-6", train);
+        ScheduleEntity schedule = createTestScheduleEntity("route-6", train);
         scheduleRepository.save(schedule);
         StopTimeEntity stopTime = createTestStopTimeEntity("station-6", LocalTime.of(14, 0), LocalTime.of(14, 1), 1, schedule);
         stopTimeRepository.save(stopTime);
@@ -187,11 +188,11 @@ class StopTimeRepositoryTest {
     @Test
     void findBySchedule_Id_shouldReturnStopTimes_whenStopTimesExist() {
         // テストデータの準備
-        TrainEntity train1 = createTestTrainEntity("train-7", "owner-6", "EXPRESS", null, 500, 8, true, "route-7");
-        TrainEntity train2 = createTestTrainEntity("train-8", "owner-6", "LOCAL", null, 300, 6, false, null);
+        TrainEntity train1 = createTestTrainEntity("owner-6", TrainType.EXPRESS, null, 500, 8, true, "route-7");
+        TrainEntity train2 = createTestTrainEntity("owner-6", TrainType.LOCAL, null, 300, 6, false, null);
         trainRepository.saveAll(Arrays.asList(train1, train2));
-        ScheduleEntity scheduleA = createTestScheduleEntity("schedule-A", "route-A", train1);
-        ScheduleEntity scheduleB = createTestScheduleEntity("schedule-B", "route-B", train2);
+        ScheduleEntity scheduleA = createTestScheduleEntity("route-A", train1);
+        ScheduleEntity scheduleB = createTestScheduleEntity("route-B", train2);
         scheduleRepository.saveAll(Arrays.asList(scheduleA, scheduleB));
 
         stopTimeRepository.save(createTestStopTimeEntity("station-7", LocalTime.of(15, 0), LocalTime.of(15, 1), 1, scheduleA));
@@ -199,7 +200,7 @@ class StopTimeRepositoryTest {
         stopTimeRepository.save(createTestStopTimeEntity("station-9", LocalTime.of(15, 5), LocalTime.of(15, 6), 2, scheduleA));
 
         // リポジトリメソッドの実行
-        List<StopTimeEntity> stopTimes = stopTimeRepository.findBySchedule_Id("schedule-A");
+        List<StopTimeEntity> stopTimes = stopTimeRepository.findBySchedule_Id(scheduleA.getId());
 
         // 検証
         assertThat(stopTimes).hasSize(2);
@@ -213,9 +214,9 @@ class StopTimeRepositoryTest {
     @Test
     void findByStationId_shouldReturnStopTimes_whenStopTimesExist() {
         // テストデータの準備
-        TrainEntity train = createTestTrainEntity("train-9", "owner-7", "EXPRESS", null, 500, 8, true, "route-9");
+        TrainEntity train = createTestTrainEntity("owner-7", TrainType.EXPRESS, null, 500, 8, true, "route-9");
         trainRepository.save(train);
-        ScheduleEntity schedule = createTestScheduleEntity("schedule-9", "route-9", train);
+        ScheduleEntity schedule = createTestScheduleEntity("route-9", train);
         scheduleRepository.save(schedule);
 
         stopTimeRepository.save(createTestStopTimeEntity("station-X", LocalTime.of(17, 0), LocalTime.of(17, 1), 1, schedule));
@@ -237,9 +238,9 @@ class StopTimeRepositoryTest {
     @Test
     void findByArrivalTimeAfter_shouldReturnStopTimes() {
         // テストデータの準備
-        TrainEntity train = createTestTrainEntity("train-10", "owner-8", "LOCAL", null, 300, 6, false, null);
+        TrainEntity train = createTestTrainEntity("owner-8", TrainType.LOCAL, null, 300, 6, false, null);
         trainRepository.save(train);
-        ScheduleEntity schedule = createTestScheduleEntity("schedule-10", "route-10", train);
+        ScheduleEntity schedule = createTestScheduleEntity("route-10", train);
         scheduleRepository.save(schedule);
 
         stopTimeRepository.save(createTestStopTimeEntity("station-A", LocalTime.of(8, 0), LocalTime.of(8, 1), 1, schedule));
@@ -261,9 +262,9 @@ class StopTimeRepositoryTest {
     @Test
     void findByDepartureTimeBefore_shouldReturnStopTimes() {
         // テストデータの準備
-        TrainEntity train = createTestTrainEntity("train-11", "owner-9", "LOCAL", null, 300, 6, false, null);
+        TrainEntity train = createTestTrainEntity("owner-9", TrainType.LOCAL, null, 300, 6, false, null);
         trainRepository.save(train);
-        ScheduleEntity schedule = createTestScheduleEntity("schedule-11", "route-11", train);
+        ScheduleEntity schedule = createTestScheduleEntity("route-11", train);
         scheduleRepository.save(schedule);
 
         stopTimeRepository.save(createTestStopTimeEntity("station-D", LocalTime.of(8, 0), LocalTime.of(8, 1), 1, schedule));
@@ -285,13 +286,13 @@ class StopTimeRepositoryTest {
     @Test
     void findBySchedule_IdAndStationId_shouldReturnStopTimes() {
         // テストデータの準備
-        TrainEntity train1 = createTestTrainEntity("train-12", "owner-10", "EXPRESS", null, 500, 8, true, "route-12");
-        TrainEntity train2 = createTestTrainEntity("train-13", "owner-10", "EXPRESS", null, 500, 8, true, "route-13");
+        TrainEntity train1 = createTestTrainEntity("owner-10", TrainType.EXPRESS, null, 500, 8, true, "route-12");
+        TrainEntity train2 = createTestTrainEntity("owner-10", TrainType.EXPRESS, null, 500, 8, true, "route-13");
         trainRepository.save(train1);
         trainRepository.save(train2);
         
-        ScheduleEntity schedule1 = createTestScheduleEntity("schedule-X", "route-X", train1);
-        ScheduleEntity schedule2 = createTestScheduleEntity("schedule-Y", "route-Y", train2);
+        ScheduleEntity schedule1 = createTestScheduleEntity("route-X", train1);
+        ScheduleEntity schedule2 = createTestScheduleEntity("route-Y", train2);
         scheduleRepository.saveAll(Arrays.asList(schedule1, schedule2));
 
         stopTimeRepository.save(createTestStopTimeEntity("station-P", LocalTime.of(20, 0), LocalTime.of(20, 1), 1, schedule1));
@@ -299,18 +300,17 @@ class StopTimeRepositoryTest {
         stopTimeRepository.save(createTestStopTimeEntity("station-P", LocalTime.of(22, 0), LocalTime.of(22, 1), 3, schedule2));
 
         // リポジトリメソッドの実行
-        List<StopTimeEntity> stopTimes = stopTimeRepository.findBySchedule_IdAndStationId("schedule-X", "station-P");
+        List<StopTimeEntity> stopTimes = stopTimeRepository.findBySchedule_IdAndStationId(schedule1.getId(), "station-P");
 
         // 検証
         assertThat(stopTimes).hasSize(1);
         assertThat(stopTimes).extracting(StopTimeEntity::getStationId).containsOnly("station-P");
-        assertThat(stopTimes).extracting(st -> st.getSchedule().getId()).containsOnly("schedule-X");
+        assertThat(stopTimes).extracting(st -> st.getSchedule().getId()).containsOnly(schedule1.getId());
     }
 
     // ヘルパーメソッド：テスト用のTrainEntityを作成
-    private TrainEntity createTestTrainEntity(String id, String ownerId, String trainType, String groupId, Integer totalCapacity, Integer doorCount, Boolean isPlayerControlled, String assignedRouteId) {
+    private TrainEntity createTestTrainEntity(String ownerId, TrainType trainType, String groupId, Integer totalCapacity, Integer doorCount, Boolean isPlayerControlled, String assignedRouteId) {
         TrainEntity entity = new TrainEntity();
-        entity.setId(id);
         entity.setOwnerId(ownerId);
         entity.setTrainType(trainType);
         entity.setGroupId(groupId);
@@ -322,9 +322,8 @@ class StopTimeRepositoryTest {
     }
 
     // ヘルパーメソッド：テスト用のScheduleEntityを作成
-    private ScheduleEntity createTestScheduleEntity(String id, String routeId, TrainEntity train) {
+    private ScheduleEntity createTestScheduleEntity(String routeId, TrainEntity train) {
         ScheduleEntity schedule = new ScheduleEntity();
-        schedule.setId(id);
         schedule.setRouteId(routeId);
         schedule.setTrain(train);
         return schedule;

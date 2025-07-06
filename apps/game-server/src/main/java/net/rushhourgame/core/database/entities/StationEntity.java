@@ -15,13 +15,10 @@ import java.util.List;
 @Entity
 @Table(name = "stations")
 @Data
-@EqualsAndHashCode(of = "id")
+@EqualsAndHashCode(callSuper = true)
 @ToString(exclude = {"platforms", "gates", "corridors"})
-public class StationEntity implements Serializable {
+public class StationEntity extends BaseEntity implements Serializable {
     private static final long serialVersionUID = 1L;
-    @Id
-    @Column(name = "id", nullable = false)
-    private String id;
 
     @Column(name = "name", nullable = false)
     private String name;

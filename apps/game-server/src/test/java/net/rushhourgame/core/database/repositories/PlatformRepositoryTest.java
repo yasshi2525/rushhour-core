@@ -47,18 +47,18 @@ class PlatformRepositoryTest {
     @Test
     void savePlatform_shouldPersistPlatform() {
         // テストデータの準備
-        StationEntity station = createTestStationEntity("station-1", "駅1", "owner-1", 1000, 1.0, 2.0);
+        StationEntity station = createTestStationEntity("駅1", "owner-1", 1000, 1.0, 2.0);
         stationRepository.save(station);
 
-        PlatformEntity platform = createTestPlatformEntity("platform-1", "track-1", 200, station);
+        PlatformEntity platform = createTestPlatformEntity("track-1", 200, station);
 
         // リポジトリメソッドの実行
         PlatformEntity savedPlatform = platformRepository.save(platform);
 
         // 検証
         assertThat(savedPlatform).isNotNull();
-        assertThat(savedPlatform.getId()).isEqualTo("platform-1");
-        assertThat(savedPlatform.getStation().getId()).isEqualTo("station-1");
+        assertThat(savedPlatform.getId()).isNotNull(); // IDは自動生成される
+        assertThat(savedPlatform.getStation().getId()).isEqualTo(station.getId());
     }
 
     /**
@@ -68,13 +68,13 @@ class PlatformRepositoryTest {
     @Test
     void findById_shouldReturnPlatform_whenPlatformExists() {
         // テストデータの準備
-        StationEntity station = createTestStationEntity("station-2", "駅2", "owner-2", 1000, 1.0, 2.0);
+        StationEntity station = createTestStationEntity("駅2", "owner-2", 1000, 1.0, 2.0);
         stationRepository.save(station);
-        PlatformEntity platform = createTestPlatformEntity("platform-2", "track-2", 200, station);
+        PlatformEntity platform = createTestPlatformEntity("track-2", 200, station);
         platformRepository.save(platform);
 
         // リポジトリメソッドの実行
-        Optional<PlatformEntity> foundPlatform = platformRepository.findById("platform-2");
+        Optional<PlatformEntity> foundPlatform = platformRepository.findById(platform.getId());
 
         // 検証
         assertThat(foundPlatform).isPresent();
@@ -101,12 +101,12 @@ class PlatformRepositoryTest {
     @Test
     void findAll_shouldReturnAllPlatforms() {
         // テストデータの準備
-        StationEntity station1 = createTestStationEntity("station-3", "駅3", "owner-3", 1000, 1.0, 2.0);
-        StationEntity station2 = createTestStationEntity("station-4", "駅4", "owner-3", 1000, 1.0, 2.0);
+        StationEntity station1 = createTestStationEntity("駅3", "owner-3", 1000, 1.0, 2.0);
+        StationEntity station2 = createTestStationEntity("駅4", "owner-3", 1000, 1.0, 2.0);
         stationRepository.saveAll(Arrays.asList(station1, station2));
 
-        platformRepository.save(createTestPlatformEntity("platform-3", "track-3", 200, station1));
-        platformRepository.save(createTestPlatformEntity("platform-4", "track-4", 250, station2));
+        platformRepository.save(createTestPlatformEntity("track-3", 200, station1));
+        platformRepository.save(createTestPlatformEntity("track-4", 250, station2));
 
         // リポジトリメソッドの実行
         List<PlatformEntity> platforms = platformRepository.findAll();
@@ -122,9 +122,9 @@ class PlatformRepositoryTest {
     @Test
     void updatePlatform_shouldUpdateExistingPlatform() {
         // テストデータの準備
-        StationEntity station = createTestStationEntity("station-5", "駅5", "owner-4", 1000, 1.0, 2.0);
+        StationEntity station = createTestStationEntity("駅5", "owner-4", 1000, 1.0, 2.0);
         stationRepository.save(station);
-        PlatformEntity originalPlatform = createTestPlatformEntity("platform-5", "track-5", 200, station);
+        PlatformEntity originalPlatform = createTestPlatformEntity("track-5", 200, station);
         platformRepository.save(originalPlatform);
 
         // 更新データの準備
@@ -139,7 +139,7 @@ class PlatformRepositoryTest {
         assertThat(updatedPlatform.getConnectedTrackId()).isEqualTo("track-5-updated");
 
         // データベースから直接取得して検証
-        Optional<PlatformEntity> foundPlatform = platformRepository.findById("platform-5");
+        Optional<PlatformEntity> foundPlatform = platformRepository.findById(originalPlatform.getId());
         assertThat(foundPlatform).isPresent();
         assertThat(foundPlatform.get().getCapacity()).isEqualTo(220);
     }
@@ -151,16 +151,16 @@ class PlatformRepositoryTest {
     @Test
     void deleteById_shouldDeletePlatform_whenPlatformExists() {
         // テストデータの準備
-        StationEntity station = createTestStationEntity("station-6", "駅6", "owner-5", 1000, 1.0, 2.0);
+        StationEntity station = createTestStationEntity("駅6", "owner-5", 1000, 1.0, 2.0);
         stationRepository.save(station);
-        PlatformEntity platform = createTestPlatformEntity("platform-6", "track-6", 200, station);
+        PlatformEntity platform = createTestPlatformEntity("track-6", 200, station);
         platformRepository.save(platform);
 
         // リポジトリメソッドの実行
-        platformRepository.deleteById("platform-6");
+        platformRepository.deleteById(platform.getId());
 
         // 検証
-        assertThat(platformRepository.findById("platform-6")).isEmpty();
+        assertThat(platformRepository.findById(platform.getId())).isEmpty();
     }
 
     /**
@@ -170,20 +170,20 @@ class PlatformRepositoryTest {
     @Test
     void findByStation_Id_shouldReturnPlatforms_whenPlatformsExist() {
         // テストデータの準備
-        StationEntity stationA = createTestStationEntity("station-A", "駅A", "owner-6", 1000, 1.0, 2.0);
-        StationEntity stationB = createTestStationEntity("station-B", "駅B", "owner-6", 1000, 1.0, 2.0);
+        StationEntity stationA = createTestStationEntity("駅A", "owner-6", 1000, 1.0, 2.0);
+        StationEntity stationB = createTestStationEntity("駅B", "owner-6", 1000, 1.0, 2.0);
         stationRepository.saveAll(Arrays.asList(stationA, stationB));
 
-        platformRepository.save(createTestPlatformEntity("platform-7", "track-7", 200, stationA));
-        platformRepository.save(createTestPlatformEntity("platform-8", "track-8", 250, stationB));
-        platformRepository.save(createTestPlatformEntity("platform-9", "track-9", 220, stationA));
+        PlatformEntity platform7 = platformRepository.save(createTestPlatformEntity("track-7", 200, stationA));
+        platformRepository.save(createTestPlatformEntity("track-8", 250, stationB));
+        PlatformEntity platform9 = platformRepository.save(createTestPlatformEntity("track-9", 220, stationA));
 
         // リポジトリメソッドの実行
-        List<PlatformEntity> platforms = platformRepository.findByStation_Id("station-A");
+        List<PlatformEntity> platforms = platformRepository.findByStation_Id(stationA.getId());
 
         // 検証
         assertThat(platforms).hasSize(2);
-        assertThat(platforms).extracting(PlatformEntity::getId).containsExactlyInAnyOrder("platform-7", "platform-9");
+        assertThat(platforms).extracting(PlatformEntity::getId).containsExactlyInAnyOrder(platform7.getId(), platform9.getId());
     }
 
     /**
@@ -193,19 +193,19 @@ class PlatformRepositoryTest {
     @Test
     void findByConnectedTrackId_shouldReturnPlatforms() {
         // テストデータの準備
-        StationEntity station = createTestStationEntity("station-7", "駅7", "owner-7", 1000, 1.0, 2.0);
+        StationEntity station = createTestStationEntity("駅7", "owner-7", 1000, 1.0, 2.0);
         stationRepository.save(station);
 
-        platformRepository.save(createTestPlatformEntity("platform-10", "track-X", 200, station));
-        platformRepository.save(createTestPlatformEntity("platform-11", "track-Y", 250, station));
-        platformRepository.save(createTestPlatformEntity("platform-12", "track-X", 220, station));
+        PlatformEntity platform10 = platformRepository.save(createTestPlatformEntity("track-X", 200, station));
+        platformRepository.save(createTestPlatformEntity("track-Y", 250, station));
+        PlatformEntity platform12 = platformRepository.save(createTestPlatformEntity("track-X", 220, station));
 
         // リポジトリメソッドの実行
         List<PlatformEntity> platforms = platformRepository.findByConnectedTrackId("track-X");
 
         // 検証
         assertThat(platforms).hasSize(2);
-        assertThat(platforms).extracting(PlatformEntity::getId).containsExactlyInAnyOrder("platform-10", "platform-12");
+        assertThat(platforms).extracting(PlatformEntity::getId).containsExactlyInAnyOrder(platform10.getId(), platform12.getId());
     }
 
     /**
@@ -215,25 +215,24 @@ class PlatformRepositoryTest {
     @Test
     void findByCapacityGreaterThanEqual_shouldReturnPlatforms() {
         // テストデータの準備
-        StationEntity station = createTestStationEntity("station-8", "駅8", "owner-8", 1000, 1.0, 2.0);
+        StationEntity station = createTestStationEntity("駅8", "owner-8", 1000, 1.0, 2.0);
         stationRepository.save(station);
 
-        platformRepository.save(createTestPlatformEntity("platform-13", "track-A", 180, station));
-        platformRepository.save(createTestPlatformEntity("platform-14", "track-B", 200, station));
-        platformRepository.save(createTestPlatformEntity("platform-15", "track-C", 250, station));
+        platformRepository.save(createTestPlatformEntity("track-A", 180, station));
+        PlatformEntity platform14 = platformRepository.save(createTestPlatformEntity("track-B", 200, station));
+        PlatformEntity platform15 = platformRepository.save(createTestPlatformEntity("track-C", 250, station));
 
         // リポジトリメソッドの実行
         List<PlatformEntity> platforms = platformRepository.findByCapacityGreaterThanEqual(200);
 
         // 検証
         assertThat(platforms).hasSize(2);
-        assertThat(platforms).extracting(PlatformEntity::getId).containsExactlyInAnyOrder("platform-14", "platform-15");
+        assertThat(platforms).extracting(PlatformEntity::getId).containsExactlyInAnyOrder(platform14.getId(), platform15.getId());
     }
 
     // ヘルパーメソッド：テスト用のStationEntityを作成
-    private StationEntity createTestStationEntity(String id, String name, String ownerId, Integer totalCapacity, Double x, Double y) {
+    private StationEntity createTestStationEntity(String name, String ownerId, Integer totalCapacity, Double x, Double y) {
         StationEntity entity = new StationEntity();
-        entity.setId(id);
         entity.setName(name);
         entity.setOwnerId(ownerId);
         entity.setTotalCapacity(totalCapacity);
@@ -246,9 +245,8 @@ class PlatformRepositoryTest {
     }
 
     // ヘルパーメソッド：テスト用のPlatformEntityを作成
-    private PlatformEntity createTestPlatformEntity(String id, String connectedTrackId, Integer capacity, StationEntity station) {
+    private PlatformEntity createTestPlatformEntity(String connectedTrackId, Integer capacity, StationEntity station) {
         PlatformEntity platform = new PlatformEntity();
-        platform.setId(id);
         platform.setConnectedTrackId(connectedTrackId);
         platform.setCapacity(capacity);
         platform.setStation(station);

@@ -2,6 +2,7 @@ package net.rushhourgame.core.database.repositories;
 
 import net.rushhourgame.core.database.entities.ScheduleEntity;
 import net.rushhourgame.core.database.entities.TrainEntity;
+import net.rushhourgame.models.common.TrainType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,18 +47,18 @@ class ScheduleRepositoryTest {
     @Test
     void saveSchedule_shouldPersistSchedule() {
         // テストデータの準備
-        TrainEntity train = createTestTrainEntity("train-1", "owner-1", "EXPRESS", null, 500, 8, true, "route-1");
+        TrainEntity train = createTestTrainEntity("owner-1", TrainType.EXPRESS, null, 500, 8, true, "route-1");
         trainRepository.save(train);
 
-        ScheduleEntity schedule = createTestScheduleEntity("schedule-1", "route-1", train);
+        ScheduleEntity schedule = createTestScheduleEntity("route-1", train);
 
         // リポジトリメソッドの実行
         ScheduleEntity savedSchedule = scheduleRepository.save(schedule);
 
         // 検証
         assertThat(savedSchedule).isNotNull();
-        assertThat(savedSchedule.getId()).isEqualTo("schedule-1");
-        assertThat(savedSchedule.getTrain().getId()).isEqualTo("train-1");
+        assertThat(savedSchedule.getId()).isNotNull(); // IDは自動生成される
+        assertThat(savedSchedule.getTrain().getId()).isEqualTo(train.getId());
     }
 
     /**
@@ -67,13 +68,13 @@ class ScheduleRepositoryTest {
     @Test
     void findById_shouldReturnSchedule_whenScheduleExists() {
         // テストデータの準備
-        TrainEntity train = createTestTrainEntity("train-2", "owner-2", "LOCAL", null, 300, 6, false, null);
+        TrainEntity train = createTestTrainEntity("owner-2", TrainType.LOCAL, null, 300, 6, false, null);
         trainRepository.save(train);
-        ScheduleEntity schedule = createTestScheduleEntity("schedule-2", "route-2", train);
+        ScheduleEntity schedule = createTestScheduleEntity("route-2", train);
         scheduleRepository.save(schedule);
 
         // リポジトリメソッドの実行
-        Optional<ScheduleEntity> foundSchedule = scheduleRepository.findById("schedule-2");
+        Optional<ScheduleEntity> foundSchedule = scheduleRepository.findById(schedule.getId());
 
         // 検証
         assertThat(foundSchedule).isPresent();
@@ -100,12 +101,12 @@ class ScheduleRepositoryTest {
     @Test
     void findAll_shouldReturnAllSchedules() {
         // テストデータの準備
-        TrainEntity train1 = createTestTrainEntity("train-3", "owner-3", "RAPID", null, 400, 8, true, "route-3");
-        TrainEntity train2 = createTestTrainEntity("train-4", "owner-3", "EXPRESS", null, 600, 10, false, "route-4");
+        TrainEntity train1 = createTestTrainEntity("owner-3", TrainType.RAPID, null, 400, 8, true, "route-3");
+        TrainEntity train2 = createTestTrainEntity("owner-3", TrainType.EXPRESS, null, 600, 10, false, "route-4");
         trainRepository.saveAll(Arrays.asList(train1, train2));
 
-        scheduleRepository.save(createTestScheduleEntity("schedule-3", "route-3", train1));
-        scheduleRepository.save(createTestScheduleEntity("schedule-4", "route-4", train2));
+        scheduleRepository.save(createTestScheduleEntity("route-3", train1));
+        scheduleRepository.save(createTestScheduleEntity("route-4", train2));
 
         // リポジトリメソッドの実行
         List<ScheduleEntity> schedules = scheduleRepository.findAll();
@@ -121,9 +122,9 @@ class ScheduleRepositoryTest {
     @Test
     void updateSchedule_shouldUpdateExistingSchedule() {
         // テストデータの準備
-        TrainEntity train = createTestTrainEntity("train-5", "owner-4", "LOCAL", null, 200, 4, false, null);
+        TrainEntity train = createTestTrainEntity("owner-4", TrainType.LOCAL, null, 200, 4, false, null);
         trainRepository.save(train);
-        ScheduleEntity originalSchedule = createTestScheduleEntity("schedule-5", "route-5", train);
+        ScheduleEntity originalSchedule = createTestScheduleEntity("route-5", train);
         scheduleRepository.save(originalSchedule);
 
         // 更新データの準備
@@ -136,7 +137,7 @@ class ScheduleRepositoryTest {
         assertThat(updatedSchedule.getRouteId()).isEqualTo("route-5-updated");
 
         // データベースから直接取得して検証
-        Optional<ScheduleEntity> foundSchedule = scheduleRepository.findById("schedule-5");
+        Optional<ScheduleEntity> foundSchedule = scheduleRepository.findById(originalSchedule.getId());
         assertThat(foundSchedule).isPresent();
         assertThat(foundSchedule.get().getRouteId()).isEqualTo("route-5-updated");
     }
@@ -148,16 +149,16 @@ class ScheduleRepositoryTest {
     @Test
     void deleteById_shouldDeleteSchedule_whenScheduleExists() {
         // テストデータの準備
-        TrainEntity train = createTestTrainEntity("train-6", "owner-5", "LOCAL", null, 150, 4, true, null);
+        TrainEntity train = createTestTrainEntity("owner-5", TrainType.LOCAL, null, 150, 4, true, null);
         trainRepository.save(train);
-        ScheduleEntity schedule = createTestScheduleEntity("schedule-6", "route-6", train);
+        ScheduleEntity schedule = createTestScheduleEntity("route-6", train);
         scheduleRepository.save(schedule);
 
         // リポジトリメソッドの実行
-        scheduleRepository.deleteById("schedule-6");
+        scheduleRepository.deleteById(schedule.getId());
 
         // 検証
-        assertThat(scheduleRepository.findById("schedule-6")).isEmpty();
+        assertThat(scheduleRepository.findById(schedule.getId())).isEmpty();
     }
 
     /**
@@ -167,21 +168,21 @@ class ScheduleRepositoryTest {
     @Test
     void findByRouteId_shouldReturnSchedules_whenSchedulesExist() {
         // テストデータの準備
-        TrainEntity train1 = createTestTrainEntity("train-7", "owner-6", "EXPRESS", null, 500, 8, true, "route-7");
-        TrainEntity train2 = createTestTrainEntity("train-8", "owner-6", "LOCAL", null, 300, 6, false, null);
-        TrainEntity train3 = createTestTrainEntity("train-9", "owner-6", "RAPID", null, 400, 8, true, "route-7");
+        TrainEntity train1 = createTestTrainEntity("owner-6", TrainType.EXPRESS, null, 500, 8, true, "route-7");
+        TrainEntity train2 = createTestTrainEntity("owner-6", TrainType.LOCAL, null, 300, 6, false, null);
+        TrainEntity train3 = createTestTrainEntity("owner-6", TrainType.RAPID, null, 400, 8, true, "route-7");
         trainRepository.saveAll(Arrays.asList(train1, train2, train3));
 
-        scheduleRepository.save(createTestScheduleEntity("schedule-7", "route-7", train1));
-        scheduleRepository.save(createTestScheduleEntity("schedule-8", "route-8", train2));
-        scheduleRepository.save(createTestScheduleEntity("schedule-9", "route-7", train3));
+        ScheduleEntity schedule7 = scheduleRepository.save(createTestScheduleEntity("route-7", train1));
+        scheduleRepository.save(createTestScheduleEntity("route-8", train2));
+        ScheduleEntity schedule9 = scheduleRepository.save(createTestScheduleEntity("route-7", train3));
 
         // リポジトリメソッドの実行
         List<ScheduleEntity> schedules = scheduleRepository.findByRouteId("route-7");
 
         // 検証
         assertThat(schedules).hasSize(2);
-        assertThat(schedules).extracting(ScheduleEntity::getId).containsExactlyInAnyOrder("schedule-7", "schedule-9");
+        assertThat(schedules).extracting(ScheduleEntity::getId).containsExactlyInAnyOrder(schedule7.getId(), schedule9.getId());
     }
 
     /**
@@ -191,18 +192,18 @@ class ScheduleRepositoryTest {
     @Test
     void findByTrain_Id_shouldReturnSchedule_whenScheduleExists() {
         // テストデータの準備
-        TrainEntity train = createTestTrainEntity("train-10", "owner-7", "EXPRESS", null, 500, 8, true, "route-10");
+        TrainEntity train = createTestTrainEntity("owner-7", TrainType.EXPRESS, null, 500, 8, true, "route-10");
         trainRepository.save(train);
 
-        ScheduleEntity schedule = createTestScheduleEntity("schedule-10", "route-10", train);
+        ScheduleEntity schedule = createTestScheduleEntity("route-10", train);
         scheduleRepository.save(schedule);
 
         // リポジトリメソッドの実行
-        Optional<ScheduleEntity> foundSchedule = scheduleRepository.findByTrain_Id("train-10");
+        Optional<ScheduleEntity> foundSchedule = scheduleRepository.findByTrain_Id(train.getId());
 
         // 検証
         assertThat(foundSchedule).isPresent();
-        assertThat(foundSchedule.get().getId()).isEqualTo("schedule-10");
+        assertThat(foundSchedule.get().getId()).isEqualTo(schedule.getId());
     }
 
     /**
@@ -219,9 +220,8 @@ class ScheduleRepositoryTest {
     }
 
     // ヘルパーメソッド：テスト用のTrainEntityを作成
-    private TrainEntity createTestTrainEntity(String id, String ownerId, String trainType, String groupId, Integer totalCapacity, Integer doorCount, Boolean isPlayerControlled, String assignedRouteId) {
+    private TrainEntity createTestTrainEntity(String ownerId, TrainType trainType, String groupId, Integer totalCapacity, Integer doorCount, Boolean isPlayerControlled, String assignedRouteId) {
         TrainEntity entity = new TrainEntity();
-        entity.setId(id);
         entity.setOwnerId(ownerId);
         entity.setTrainType(trainType);
         entity.setGroupId(groupId);
@@ -233,9 +233,8 @@ class ScheduleRepositoryTest {
     }
 
     // ヘルパーメソッド：テスト用のScheduleEntityを作成
-    private ScheduleEntity createTestScheduleEntity(String id, String routeId, TrainEntity train) {
+    private ScheduleEntity createTestScheduleEntity(String routeId, TrainEntity train) {
         ScheduleEntity schedule = new ScheduleEntity();
-        schedule.setId(id);
         schedule.setRouteId(routeId);
         schedule.setTrain(train);
         return schedule;

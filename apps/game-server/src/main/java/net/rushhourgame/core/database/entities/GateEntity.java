@@ -1,10 +1,11 @@
 package net.rushhourgame.core.database.entities;
 
+import java.io.Serializable;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
-import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
@@ -18,12 +19,10 @@ import lombok.ToString;
 @Entity
 @Table(name = "gates")
 @Data
-@EqualsAndHashCode(of = "id")
+@EqualsAndHashCode(callSuper = true)
 @ToString(exclude = "station")
-public class GateEntity {
-    @Id
-    @Column(name = "id", nullable = false)
-    private String id;
+public class GateEntity extends BaseEntity implements Serializable {
+    private static final long serialVersionUID = 1L;
 
     @Column(name = "capacity", nullable = false)
     private Integer capacity;

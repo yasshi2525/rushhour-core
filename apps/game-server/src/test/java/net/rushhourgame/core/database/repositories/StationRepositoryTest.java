@@ -34,7 +34,7 @@ class StationRepositoryTest {
     void setUp() {
         // テストデータの準備
         testStation = new StationEntity();
-        testStation.setId(UUID.randomUUID().toString());
+        // ID is auto-generated, no need to set manually
         testStation.setName("テスト駅");
         testStation.setOwnerId("player-001");
         testStation.setTotalCapacity(1000);
@@ -230,7 +230,6 @@ class StationRepositoryTest {
      */
     private StationEntity createStation(String name, String ownerId, double x, double y) {
         StationEntity station = new StationEntity();
-        station.setId(UUID.randomUUID().toString());
         station.setName(name);
         station.setOwnerId(ownerId);
         station.setTotalCapacity(1000);
