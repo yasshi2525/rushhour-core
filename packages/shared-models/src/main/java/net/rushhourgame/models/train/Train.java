@@ -1,5 +1,6 @@
 package net.rushhourgame.models.train;
 
+import lombok.Data;
 import net.rushhourgame.models.railway.Car;
 import net.rushhourgame.models.route.Route;
 import net.rushhourgame.models.timetable.Schedule;
@@ -9,6 +10,7 @@ import java.util.List;
 /**
  * 電車を表すクラス。
  */
+@Data
 public class Train {
     private String id; // 電車ID
     private String ownerId; // 所有者ID

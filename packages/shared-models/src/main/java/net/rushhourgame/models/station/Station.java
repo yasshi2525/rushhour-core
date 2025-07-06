@@ -1,5 +1,6 @@
 package net.rushhourgame.models.station;
 
+import lombok.Data;
 import net.rushhourgame.models.common.Location;
 import net.rushhourgame.models.railway.Corridor;
 import net.rushhourgame.models.railway.Gate;
@@ -10,6 +11,7 @@ import java.util.List;
 /**
  * 駅を表すクラス。
  */
+@Data
 public class Station {
     private String id; // 駅ID
     private String name; // 駅名

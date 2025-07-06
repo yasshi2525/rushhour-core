@@ -1,8 +1,11 @@
 package net.rushhourgame.models.route;
 
+import lombok.Data;
+
 /**
  * 電車の運行経路を表すクラス。
  */
+@Data
 public class Route {
     private String id; // 経路ID
     private String name; // 経路名

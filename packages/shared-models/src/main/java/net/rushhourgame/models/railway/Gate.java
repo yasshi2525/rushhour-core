@@ -1,10 +1,12 @@
 package net.rushhourgame.models.railway;
 
+import lombok.Data;
 import net.rushhourgame.models.common.Location;
 
 /**
  * 駅の改札を表すクラス。
  */
+@Data
 public class Gate {
     private String id; // 改札ID
     private String stationId; // 所属する駅のID
