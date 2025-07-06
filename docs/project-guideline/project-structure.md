@@ -75,11 +75,11 @@
 │   ├── shared-models/          # 共通データモデル
 │   │   ├── src/main/java/
 │   │   │   └── net/rushhourgame/models/
-│   │   │       ├── train/      # 電車関連モデル
-│   │   │       ├── station/    # 駅関連モデル
+│   │   │       ├── railway/    # 鉄道関連モデル (Train, Station, Trackなど)
 │   │   │       ├── resident/   # 住民関連モデル
 │   │   │       ├── route/      # 路線関連モデル
-│   │   │       └── event/      # イベントモデル
+│   │   │       ├── event/      # イベントモデル
+│   │   │       └── common/     # 共通モデル (Locationなど)
 │   │   └── build.gradle
 │   ├── event-bus/              # 分散イベントバス
 │   │   ├── src/main/java/
