@@ -10,6 +10,7 @@ import java.time.LocalTime;
 @Data
 public class StopTime {
     private String stationId;
+    private String scheduleId;
     private LocalTime arrivalTime;
     private LocalTime departureTime;
 }

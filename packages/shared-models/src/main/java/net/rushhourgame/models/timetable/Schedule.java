@@ -11,5 +11,6 @@ import java.util.List;
 public class Schedule {
     private String id;
     private String routeId;
+    private String trainId;
     private List<StopTime> stopTimes;
 }

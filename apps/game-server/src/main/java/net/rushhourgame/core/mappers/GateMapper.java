@@ -16,7 +16,7 @@ public interface GateMapper {
     /**
      * 永続化モデルからドメインモデルへの変換
      */
-    @Mapping(target = "stationId", source = "stationId")
+    @Mapping(target = "stationId", source = "station.id")
     @Mapping(target = "position", source = "position")
     Gate toDomain(GateEntity entity);
     
@@ -24,7 +24,6 @@ public interface GateMapper {
      * ドメインモデルから永続化モデルへの変換
      */
     @Mapping(target = "station", ignore = true)
-    @Mapping(target = "stationId", source = "stationId")
     @Mapping(target = "position", source = "position")
     GateEntity toEntity(Gate domain);
     

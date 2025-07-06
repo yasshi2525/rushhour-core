@@ -16,14 +16,13 @@ public interface PlatformMapper {
     /**
      * 永続化モデルからドメインモデルへの変換
      */
-    @Mapping(target = "stationId", source = "stationId")
+    @Mapping(target = "stationId", source = "station.id")
     Platform toDomain(PlatformEntity entity);
     
     /**
      * ドメインモデルから永続化モデルへの変換
      */
     @Mapping(target = "station", ignore = true)
-    @Mapping(target = "stationId", source = "stationId")
     PlatformEntity toEntity(Platform domain);
     
     /**

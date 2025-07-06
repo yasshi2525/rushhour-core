@@ -11,7 +11,7 @@ import java.time.LocalTime;
  * 停車時間の永続化モデル（JPA Entity）
  */
 @Entity
-@Table(name = "stop_times")
+@Table(name = "stop_times", uniqueConstraints = {@UniqueConstraint(columnNames = {"schedule_id", "sequence_order"})})
 @Data
 @EqualsAndHashCode(of = "id")
 @ToString(exclude = "schedule")
@@ -36,6 +36,5 @@ public class StopTimeEntity {
     @JoinColumn(name = "schedule_id", nullable = false)
     private ScheduleEntity schedule;
 
-    @Column(name = "schedule_id", insertable = false, updatable = false)
-    private String scheduleId;
+    
 }

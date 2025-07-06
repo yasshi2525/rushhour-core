@@ -7,6 +7,7 @@ import net.rushhourgame.models.station.Station;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
+import org.mapstruct.AfterMapping;
 
 import java.util.List;
 
@@ -33,6 +34,29 @@ public interface StationMapper {
     @Mapping(target = "gates", source = "gates")
     @Mapping(target = "corridors", source = "corridors")
     StationEntity toEntity(Station domain);
+
+    /**
+     * ドメインモデルから永続化モデルへの変換後処理
+     * 子エンティティのstationフィールドに親エンティティを設定
+     */
+    @AfterMapping
+    default void linkStationToChildren(Station domain, @MappingTarget StationEntity entity) {
+        if (domain.getPlatforms() != null && entity.getPlatforms() != null) {
+            for (int i = 0; i < domain.getPlatforms().size(); i++) {
+                entity.getPlatforms().get(i).setStation(entity);
+            }
+        }
+        if (domain.getGates() != null && entity.getGates() != null) {
+            for (int i = 0; i < domain.getGates().size(); i++) {
+                entity.getGates().get(i).setStation(entity);
+            }
+        }
+        if (domain.getCorridors() != null && entity.getCorridors() != null) {
+            for (int i = 0; i < domain.getCorridors().size(); i++) {
+                entity.getCorridors().get(i).setStation(entity);
+            }
+        }
+    }
     
     /**
      * 永続化モデルのリストからドメインモデルのリストへの変換

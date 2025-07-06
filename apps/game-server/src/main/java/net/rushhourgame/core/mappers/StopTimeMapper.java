@@ -1,11 +1,12 @@
 package net.rushhourgame.core.mappers;
 
-import net.rushhourgame.core.database.entities.StopTimeEntity;
-import net.rushhourgame.models.timetable.StopTime;
+import java.util.List;
+
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
-import java.util.List;
+import net.rushhourgame.core.database.entities.StopTimeEntity;
+import net.rushhourgame.models.timetable.StopTime;
 
 /**
  * 停車時間ドメインモデルと永続化モデル間のマッピング
@@ -16,6 +17,7 @@ public interface StopTimeMapper {
     /**
      * 永続化モデルからドメインモデルへの変換
      */
+    @Mapping(target = "scheduleId", source = "schedule.id")
     StopTime toDomain(StopTimeEntity entity);
     
     /**
@@ -23,7 +25,6 @@ public interface StopTimeMapper {
      */
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "schedule", ignore = true)
-    @Mapping(target = "scheduleId", ignore = true)
     @Mapping(target = "sequenceOrder", ignore = true)
     StopTimeEntity toEntity(StopTime domain);
     

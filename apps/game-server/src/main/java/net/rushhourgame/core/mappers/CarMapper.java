@@ -16,14 +16,13 @@ public interface CarMapper {
     /**
      * 永続化モデルからドメインモデルへの変換
      */
-    @Mapping(target = "trainId", source = "trainId")
+    @Mapping(target = "trainId", source = "train.id")
     Car toDomain(CarEntity entity);
     
     /**
      * ドメインモデルから永続化モデルへの変換
      */
     @Mapping(target = "train", ignore = true)
-    @Mapping(target = "trainId", source = "trainId")
     CarEntity toEntity(Car domain);
     
     /**
