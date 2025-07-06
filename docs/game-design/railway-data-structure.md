@@ -931,3 +931,164 @@ public class SpatialCacheService {
 | イベント配信 | Spring Events | Kafka + Jackson | + バイナリ圧縮 |
 
 この段階的なアプローチにより、各フェーズで必要な性能とスケーラビリティを確保しながら、技術的負債を最小化した実装が可能です。
+
+## DDDアプローチにおける業務ロジック配置指針
+
+### 1. 各層の役割と責務
+
+共通モデル（packages/shared-models）
+
+```java
+// ✅ 適切な使用例
+@Data
+public class Track {
+    private String id;
+    private double length;
+    private double maxSpeed;
+
+    // ビジネスルールのみ - 永続化やインフラ依存なし
+    public boolean canAccommodateSpeed(double requestedSpeed) {
+        return requestedSpeed <= maxSpeed;
+    }
+
+    public boolean isLongEnough(double minimumLength) {
+        return length >= minimumLength;
+    }
+}
+```
+
+Entity（JPA永続化モデル）
+
+```java
+// ✅ 適切な使用例
+@Entity
+public class TrackEntity implements Serializable {
+    // データベース構造とマッピングのみ
+    // ビジネスロジックは含まない
+    @Id private String id;
+    @Column private Double length;
+    @OneToMany private List<SignalEntity> signals;
+}
+```
+
+### 2. 業務ロジック実装場所の指針
+
+「線路を延長する」ロジックの実装
+
+```java
+// 🎯 ドメインサービス層での実装
+@Service
+@Transactional
+public class TrackExtensionService {
+
+    private final TrackRepository trackRepository;
+    private final JunctionRepository junctionRepository;
+    private final TrackMapper trackMapper;
+
+    /**
+    * 線路延長の複雑な業務ロジック
+    */
+    public Track extendTrack(String trackId, double extensionLength, Point3D endPoint) {
+        // 1. ドメインモデルで業務ルール検証
+        Track track = findTrackOrThrow(trackId);
+
+        if (!track.canBeExtended(extensionLength)) {
+            throw new TrackExtensionNotAllowedException("Track cannot be extended beyond maximum length");
+        }
+
+        // 2. 複雑な業務ロジック実行
+        Junction newJunction = createJunctionAt(endPoint);
+        Track extendedTrack = track.extend(extensionLength, newJunction.getId());
+
+        // 3. 永続化（インフラ層へ移譲）
+        TrackEntity savedEntity = trackRepository.save(trackMapper.toEntity(extendedTrack));
+        return trackMapper.toDomain(savedEntity);
+    }
+}
+```
+
+「ホームを増やす」ロジックの実装
+
+```java
+// 🎯 集約ルート（Station）での調整
+@Service
+@Transactional
+public class StationExpansionService {
+
+    /**
+    * 駅へのホーム追加（集約内の整合性保証）
+    */
+    public Station addPlatform(String stationId, Platform newPlatform) {
+        Station station = findStationOrThrow(stationId);
+
+        // ドメインモデルでの制約チェック
+        if (!station.canAccommodateNewPlatform(newPlatform)) {
+            throw new PlatformCapacityExceededException("Station capacity exceeded");
+        }
+
+        // 集約内での状態変更
+        Station updatedStation = station.addPlatform(newPlatform);
+
+        return stationRepository.save(stationMapper.toEntity(updatedStation))
+            .let(stationMapper::toDomain);
+    }
+}
+```
+
+### 3. レイヤー別責務マトリックス
+
+| 操作       | 共通モデル | Entity | Repository | Service | Controller |
+|----------|-------|--------|------------|---------|------------|
+| データ検証    | ✅     | ❌      | ❌          | ✅       | ❌          |
+| 業務ルール    | ✅     | ❌      | ❌          | ✅       | ❌          |
+| 永続化      | ❌     | ✅      | ✅          | ❌       | ❌          |
+| トランザクション | ❌     | ❌      | ❌          | ✅       | ❌          |
+| API変換    | ❌     | ❌      | ❌          | ❌       | ✅          |
+
+## MapStructマッパー実装戦略
+
+自動実装 vs カスタム実装
+
+MapStructによる自動生成（推奨）:
+```java
+// 現在のインタフェース → 自動実装される
+@Mapper(componentModel = "spring")
+public interface StationMapper {
+    Station toDomain(StationEntity entity);
+    StationEntity toEntity(Station domain);
+}
+
+// ビルド時に以下が自動生成される:
+// StationMapperImpl.java
+```
+
+複雑なマッピングが必要な場合:
+```java
+@Mapper(componentModel = "spring", uses = {LocationMapper.class})
+public interface TrackMapper {
+
+    @Mapping(target = "signals", source = "signals")
+    @Mapping(target = "curve", qualifiedByName = "mapCurvePoints")
+    Track toDomain(TrackEntity entity);
+
+    // カスタムマッピングメソッド
+    @Named("mapCurvePoints")
+    default List<Point3D> mapCurvePoints(List<Point3DEmbeddable> entities) {
+        return entities.stream()
+            .sorted(Comparator.comparing(Point3DEmbeddable::getSequenceOrder))
+            .map(this::mapPoint3D)
+            .collect(Collectors.toList());
+    }
+
+    Point3D mapPoint3D(Point3DEmbeddable entity);
+}
+```
+
+推奨実装パターン:
+
+1. 基本マッピング: MapStruct自動生成に委譲
+2. 複雑な変換: @Namedメソッドでカスタム実装
+3. validation: ドメインモデル内で実装
+4. 特殊ケース: 専用ServiceやFactoryクラス作成
+
+これらの方針により、DDDの原則を保ちながら効率的な実装が可能になります。
