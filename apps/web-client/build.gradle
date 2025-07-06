@@ -1,0 +1,87 @@
+// web-clientはJavaScript/TypeScriptプロジェクトのため、
+// Javaビルドは不要。SonarQubeからも除外。
+
+// このファイルはGradleマルチプロジェクト構成のために存在するが、
+// 実際のビルドはnpm/Viteによって行われる。
+
+apply plugin: 'base'
+
+description = 'Rush Hour Railway Simulation - Web Client'
+
+// SonarQube設定 - JavaScript/TypeScript用
+sonar {
+    properties {
+        // プロジェクト設定
+        property 'sonar.projectKey', 'rushhour-core:web-client'
+        property 'sonar.projectName', 'Rush Hour Web Client'
+        
+        // ソースとテストの設定
+        property 'sonar.sources', 'src'
+        property 'sonar.tests', 'src'
+        property 'sonar.test.inclusions', '**/*.test.ts,**/*.test.tsx,**/*.spec.ts,**/*.spec.tsx'
+        property 'sonar.exclusions', '**/node_modules/**,**/dist/**,**/build/**,**/*.d.ts'
+        
+        // TypeScript/JavaScript設定
+        property 'sonar.typescript.lcov.reportPaths', 'coverage/lcov.info'
+        property 'sonar.javascript.lcov.reportPaths', 'coverage/lcov.info'
+        property 'sonar.eslint.reportPaths', 'build/reports/eslint-report.json'
+        
+        // 品質ゲート
+        property 'sonar.qualitygate.wait', true
+        
+        // 言語設定
+        property 'sonar.language', 'ts'
+        property 'sonar.typescript.node', 'node'
+    }
+}
+
+// npmタスクを定義（オプション）
+task npmInstall(type: Exec) {
+    commandLine 'npm', 'install'
+    workingDir file('.')
+}
+
+task npmBuild(type: Exec) {
+    dependsOn npmInstall
+    commandLine 'npm', 'run', 'build'
+    workingDir file('.')
+}
+
+task npmTest(type: Exec) {
+    dependsOn npmInstall
+    commandLine 'npm', 'run', 'test'
+    workingDir file('.')
+}
+
+task npmLint(type: Exec) {
+    dependsOn npmInstall
+    commandLine 'npm', 'run', 'lint'
+    workingDir file('.')
+}
+
+// ESLintレポート生成タスク
+task generateESLintReport(type: Exec) {
+    dependsOn npmInstall
+    doFirst {
+        file('build/reports').mkdirs()
+    }
+    commandLine 'npx', 'eslint', 'src', '--format', 'json', '--output-file', 'build/reports/eslint-report.json'
+    workingDir file('.')
+    ignoreExitValue true // ESLintエラーがあってもタスクを続行
+}
+
+// カバレッジレポート生成タスク
+task generateCoverageReport(type: Exec) {
+    dependsOn npmInstall
+    commandLine 'npm', 'run', 'test:coverage'
+    workingDir file('.')
+}
+
+// Gradleタスクの統合
+check.dependsOn npmTest, npmLint, generateESLintReport, generateCoverageReport
+build.dependsOn npmBuild
+
+// SonarQubeタスクの依存関係設定（条件付き）
+afterEvaluate {
+    tasks.findByName('sonar')?.dependsOn(generateESLintReport, generateCoverageReport)
+}

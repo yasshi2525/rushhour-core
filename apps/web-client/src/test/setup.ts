@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom'
+import { vi } from 'vitest'
 
 // Three.jsのモック
 global.ResizeObserver = class ResizeObserver {
@@ -17,7 +18,7 @@ const mockWebGLContext = {
   getShaderPrecisionFormat: () => ({ precision: 1, rangeMin: 1, rangeMax: 1 }),
 }
 
-global.HTMLCanvasElement.prototype.getContext = jest.fn(() => mockWebGLContext)
+global.HTMLCanvasElement.prototype.getContext = vi.fn(() => mockWebGLContext)
 
 // WebSocket関連のモック
 global.WebSocket = class WebSocket {
