@@ -3,6 +3,7 @@ package net.rushhourgame.core.services;
 import lombok.RequiredArgsConstructor;
 import net.rushhourgame.core.database.entities.StationEntity;
 import net.rushhourgame.core.database.repositories.StationRepository;
+import net.rushhourgame.core.exceptions.EntityNotFoundException;
 import net.rushhourgame.core.mappers.StationMapper;
 import net.rushhourgame.models.station.Station;
 import org.springframework.stereotype.Service;
@@ -90,14 +91,12 @@ public class StationService {
      * 駅を更新
      */
     public Station update(Station station) {
-        Optional<StationEntity> existingEntity = stationRepository.findById(station.getId());
-        if (existingEntity.isPresent()) {
-            StationEntity entity = existingEntity.get();
-            stationMapper.updateEntityFromDomain(station, entity);
-            StationEntity savedEntity = stationRepository.save(entity);
-            return stationMapper.toDomain(savedEntity);
-        }
-        throw new RuntimeException("Station not found with id: " + station.getId());
+        StationEntity entity = stationRepository.findById(station.getId())
+            .orElseThrow(() -> new EntityNotFoundException("Station", station.getId()));
+        
+        stationMapper.updateEntityFromDomain(station, entity);
+        StationEntity savedEntity = stationRepository.save(entity);
+        return stationMapper.toDomain(savedEntity);
     }
     
     /**

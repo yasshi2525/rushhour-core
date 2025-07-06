@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -16,7 +17,8 @@ import java.util.List;
 @Data
 @EqualsAndHashCode(of = "id")
 @ToString(exclude = {"curve", "signals"})
-public class TrackEntity {
+public class TrackEntity implements Serializable {
+    private static final long serialVersionUID = 1L;
     @Id
     @Column(name = "id", nullable = false)
     private String id;
