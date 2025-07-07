@@ -18,13 +18,12 @@ allprojects {
 }
 
 subprojects {
+    apply plugin: 'org.sonarqube'
     // web-clientはJavaScript/TypeScriptプロジェクトなので除外
     if (name != 'web-client') {
         apply plugin: 'java'
         apply plugin: 'io.spring.dependency-management'
         apply plugin: 'jacoco'
-        // サブプロジェクトのSonarQube設定はルートで統合管理するため無効化
-        // apply plugin: 'org.sonarqube'
     }
     
     if (name != 'web-client') {
@@ -80,8 +79,6 @@ subprojects {
         useJUnitPlatform()
         finalizedBy jacocoTestReport
     }
-
-    // SonarQube設定はルートbuild.gradleで統合管理される
 }
 
 task buildGameServer {
@@ -112,7 +109,7 @@ task jacocoRootReport(type: JacocoReport) {
     }
 }
 
-// SonarQube設定 - Java専用の最小構成で重複を回避
+// SonarQube設定
 sonar {
     properties {
         property "sonar.projectKey", "rushhour-core"
@@ -125,15 +122,7 @@ sonar {
         
         // Java カバレッジ設定
         property "sonar.coverage.jacoco.xmlReportPaths", "${buildDir}/reports/jacoco/jacocoRootReport/jacocoRootReport.xml"
-        
-        // Javaのみのソース設定
-        property "sonar.sources", "apps/game-server/src/main/java,packages/shared-models/src/main/java"
-        property "sonar.tests", "apps/game-server/src/test/java"
-        
-        // 除外設定
-        property "sonar.coverage.exclusions", "**/proto/**/*,**/build/**/*,**/*Generated.java"
-        property "sonar.exclusions", "**/build/**/*,**/proto/**/*,**/*Generated.java"
-        
+                
         // 品質ゲート
         property "sonar.qualitygate.wait", "true"
     }

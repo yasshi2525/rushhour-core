@@ -24,7 +24,7 @@ task npmBuild(type: Exec) {
 
 task npmTest(type: Exec) {
     dependsOn npmInstall
-    commandLine 'npm', 'run', 'test'
+    commandLine 'npm', 'run', 'test:ci'
     workingDir file('.')
 }
 
@@ -42,13 +42,12 @@ task generateESLintReport(type: Exec) {
     }
     commandLine 'npx', 'eslint', 'src', '--format', 'json', '--output-file', 'build/reports/eslint-report.json'
     workingDir file('.')
-    ignoreExitValue true // ESLintエラーがあってもタスクを続行
 }
 
 // カバレッジレポート生成タスク
 task generateCoverageReport(type: Exec) {
     dependsOn npmInstall
-    commandLine 'npm', 'run', 'test:ci'
+    commandLine 'npm', 'run', 'test:coverage:ci'
     workingDir file('.')
 }
 
@@ -57,3 +56,38 @@ check.dependsOn npmTest, npmLint, generateESLintReport, generateCoverageReport
 build.dependsOn npmBuild
 
 // Gradle統合 - ルートbuild.gradleで依存関係が管理される
+
+sonar {
+    properties {
+        property "sonar.projectKey", "rushhour-core:web-client"
+        property "sonar.projectName", "Railway Simulation Game - Web Client"
+        property "sonar.organization", "yasshi2525"
+        property "sonar.sources", "src"
+        property "sonar.tests", "src"
+        property "sonar.javascript.lcov.reportPaths", "coverage/lcov.info"
+        property "sonar.typescript.lcov.reportPaths", "coverage/lcov.info"
+        property "sonar.eslint.reportPaths", "build/reports/eslint-report.json"
+        property "sonar.typescript.file.suffixes", ".ts,.tsx"
+        property "sonar.javascript.file.suffixes", ".js,.jsx"
+        property "sonar.exclusions", [
+            "**/build/**/*",
+            "**/node_modules/**/*",
+            "**/*.d.ts"
+        ].join(',')
+        property "sonar.coverage.exclusions", [
+            "**/build/**/*",
+            "**/node_modules/**/*",
+            "**/*.test.ts",
+            "**/*.test.tsx",
+            "**/*.spec.ts",
+            "**/*.spec.tsx"
+        ].join(',')
+        property "sonar.test.inclusions", [
+            "**/*.test.ts",
+            "**/*.test.tsx",
+            "**/*.spec.ts",
+            "**/*.spec.tsx"
+        ].join(',')
+        property "sonar.qualitygate.wait", "false"
+    }
+}
