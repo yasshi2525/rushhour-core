@@ -60,5 +60,30 @@ protobuf {
 }
 
 tasks.named('test') {
-	useJUnitPlatform()
+    useJUnitPlatform()
+}
+
+sonar {
+    properties {
+        property "sonar.projectKey", "rushhour-core:game-server"
+        property "sonar.projectName", "Railway Simulation Game - Game Server"
+        property "sonar.organization", "yasshi2525"
+        property "sonar.sources", "src/main/java"
+        property "sonar.tests", "src/test/java"
+        property "sonar.java.binaries", "build/classes/java/main"
+        property "sonar.java.libraries", "build/libs/**/*.jar"
+        property "sonar.coverage.jacoco.xmlReportPaths", "${project.buildDir}/reports/jacoco/test/jacocoTestReport.xml"
+        property "sonar.exclusions", [
+            "**/build/**/*",
+            "**/generated/**/*",
+            "**/proto/**/*",
+            "**/*Generated.java"
+        ].join(',')
+        property "sonar.coverage.exclusions", [
+            "**/proto/**/*",
+            "**/build/**/*",
+            "**/*Generated.java"
+        ].join(',')
+        property "sonar.qualitygate.wait", "false"
+    }
 }

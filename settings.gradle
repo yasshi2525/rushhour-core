@@ -1,4 +1,5 @@
 rootProject.name = 'rushhour-core'
 
 include 'apps:game-server'
+include 'apps:web-client'
 include 'packages:shared-models'

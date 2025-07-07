@@ -1,0 +1,102 @@
+// web-clientはJavaScript/TypeScriptプロジェクトのため、
+// Javaビルドは不要。SonarQubeからも除外。
+
+// このファイルはGradleマルチプロジェクト構成のために存在するが、
+// 実際のビルドはnpm/Viteによって行われる。
+
+apply plugin: 'base'
+
+description = 'Rush Hour Railway Simulation - Web Client'
+
+// SonarQube設定はルートbuild.gradleで統合管理される
+
+// npmタスクを定義（オプション）
+task npmInstall(type: Exec) {
+    commandLine 'npm', 'install'
+    workingDir file('.')
+}
+
+task npmBuild(type: Exec) {
+    dependsOn npmInstall
+    commandLine 'npm', 'run', 'build'
+    workingDir file('.')
+}
+
+task npmTest(type: Exec) {
+    dependsOn npmInstall
+    commandLine 'npm', 'run', 'test:ci'
+    workingDir file('.')
+}
+
+task npmLint(type: Exec) {
+    dependsOn npmInstall
+    commandLine 'npm', 'run', 'lint'
+    workingDir file('.')
+    ignoreExitValue = true // 開発フェーズではlintエラーでビルドを停止しない
+}
+
+// ESLintレポート生成タスク
+task generateESLintReport(type: Exec) {
+    dependsOn npmInstall
+    doFirst {
+        file('build/reports').mkdirs()
+    }
+    commandLine 'npx', 'eslint', 'src', '--format', 'json', '--output-file', 'build/reports/eslint-report.json'
+    workingDir file('.')
+    ignoreExitValue = true // レポート生成のためエラーでもタスクを継続
+}
+
+// カバレッジレポート生成タスク
+task generateCoverageReport(type: Exec) {
+    dependsOn npmInstall
+    commandLine 'npm', 'run', 'test:coverage:ci'
+    workingDir file('.')
+}
+
+// testタスクを定義（JavaプロジェクトではないがGradle統合のため）
+task test {
+    dependsOn npmTest
+    group = 'verification'
+    description = 'Run JavaScript/TypeScript tests using npm'
+}
+
+// Gradleタスクの統合
+check.dependsOn npmTest, npmLint, generateESLintReport, generateCoverageReport
+build.dependsOn npmBuild
+
+// Gradle統合 - ルートbuild.gradleで依存関係が管理される
+
+sonar {
+    properties {
+        property "sonar.projectKey", "rushhour-core:web-client"
+        property "sonar.projectName", "Railway Simulation Game - Web Client"
+        property "sonar.organization", "yasshi2525"
+        property "sonar.sources", "src"
+        property "sonar.tests", "src"
+        property "sonar.javascript.lcov.reportPaths", "coverage/lcov.info"
+        property "sonar.typescript.lcov.reportPaths", "coverage/lcov.info"
+        property "sonar.eslint.reportPaths", "build/reports/eslint-report.json"
+        property "sonar.typescript.file.suffixes", ".ts,.tsx"
+        property "sonar.javascript.file.suffixes", ".js,.jsx"
+        property "sonar.exclusions", [
+            "**/build/**/*",
+            "**/node_modules/**/*",
+            "**/*.d.ts"
+        ].join(',')
+        property "sonar.coverage.exclusions", [
+            "**/build/**/*",
+            "**/node_modules/**/*",
+            "**/*.test.ts",
+            "**/*.test.tsx",
+            "**/*.spec.ts",
+            "**/*.spec.tsx"
+        ].join(',')
+        property "sonar.test.inclusions", [
+            "**/*.test.ts",
+            "**/*.test.tsx",
+            "**/*.spec.ts",
+            "**/*.spec.tsx"
+        ].join(',')
+        property "sonar.qualitygate.wait", "false"
+    }
+}

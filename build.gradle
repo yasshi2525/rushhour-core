@@ -18,17 +18,22 @@ allprojects {
 }
 
 subprojects {
-    apply plugin: 'java'
-    apply plugin: 'io.spring.dependency-management'
-    apply plugin: 'jacoco'
     apply plugin: 'org.sonarqube'
+    // web-clientはJavaScript/TypeScriptプロジェクトなので除外
+    if (name != 'web-client') {
+        apply plugin: 'java'
+        apply plugin: 'io.spring.dependency-management'
+        apply plugin: 'jacoco'
+    }
     
-    java {
-        sourceCompatibility = JavaVersion.VERSION_21
-        targetCompatibility = JavaVersion.VERSION_21
-        toolchain {
-		    languageVersion = JavaLanguageVersion.of(21)
-	    }
+    if (name != 'web-client') {
+        java {
+            sourceCompatibility = JavaVersion.VERSION_21
+            targetCompatibility = JavaVersion.VERSION_21
+            toolchain {
+    		    languageVersion = JavaLanguageVersion.of(21)
+    	    }
+        }
     }
     
     dependencyManagement {
@@ -74,14 +79,6 @@ subprojects {
         useJUnitPlatform()
         finalizedBy jacocoTestReport
     }
-
-    sonar {
-        properties {
-            // サブプロジェクト固有の設定
-            property "sonar.sources", "src/main/java"
-            property "sonar.tests", "src/test/java"
-        }
-    }
 }
 
 task buildGameServer {
@@ -95,11 +92,14 @@ task jacocoRootReport(type: JacocoReport) {
     description = 'Generate aggregate Jacoco coverage report for all modules'
     group = 'reporting'
     
-    dependsOn(test, subprojects.test, subprojects.jacocoTestReport)
+    // web-clientを除外したJavaプロジェクトのみ
+    def javaProjects = subprojects.findAll { it.name != 'web-client' }
     
-    additionalSourceDirs.setFrom(subprojects.sourceSets.main.allSource.srcDirs)
-    sourceDirectories.setFrom(subprojects.sourceSets.main.allSource.srcDirs)
-    classDirectories.setFrom(subprojects.sourceSets.main.output)
+    dependsOn(test, javaProjects.test, javaProjects.jacocoTestReport)
+    
+    additionalSourceDirs.setFrom(javaProjects.sourceSets.main.allSource.srcDirs)
+    sourceDirectories.setFrom(javaProjects.sourceSets.main.allSource.srcDirs)
+    classDirectories.setFrom(javaProjects.sourceSets.main.output)
     executionData.setFrom(project.fileTree(dir: '.', include: '**/build/jacoco/test.exec'))
     
     reports {
@@ -118,13 +118,18 @@ sonar {
         property "sonar.organization", "yasshi2525"
         property "sonar.java.source", "21"
         property "sonar.java.target", "21"
-        property "sonar.coverage.jacoco.xmlReportPaths", "${buildDir}/reports/jacoco/jacocoRootReport/jacocoRootReport.xml"
         property "sonar.sourceEncoding", "UTF-8"
-        property "sonar.gradle.skipCompile", "true" // コンパイルタスクの重複実行を回避
         
-        // SonarQube品質ゲート設定
-        property "sonar.coverage.exclusions", "**/proto/**/*"
-        property "sonar.exclusions", "**/build/**/*,**/proto/**/*"
-        property "sonar.test.exclusions", "**/src/test/**/*"
+        // Java カバレッジ設定
+        property "sonar.coverage.jacoco.xmlReportPaths", "${buildDir}/reports/jacoco/jacocoRootReport/jacocoRootReport.xml"
+                
+        // 品質ゲート
+        property "sonar.qualitygate.wait", "true"
     }
+}
+
+// SonarQubeタスクの依存関係設定 - JavaとTypeScript統合
+tasks.named('sonar') {
+    dependsOn 'jacocoRootReport'
+    dependsOn ':apps:web-client:generateESLintReport'
 }
