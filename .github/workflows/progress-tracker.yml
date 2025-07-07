@@ -29,6 +29,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
             
+      - name: Install XML tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxml2-utils
+          
       - name: Run Tests and Generate Coverage Report
         run: |
           ./gradlew clean test jacocoRootReport
@@ -44,10 +49,10 @@ jobs:
           # 各テストファイルを安全に処理
           for xml_file in $(find . -name "TEST-*.xml" -type f); do
             if [ -f "$xml_file" ]; then
-              # xpathを使用してセキュアにXMLを解析（testsuiteを対象とする）
-              tests=$(xpath -q -e '//testsuite/@tests' "$xml_file" 2>/dev/null | sed 's/.*tests="\([0-9]*\)".*/\1/' || echo "0")
-              failures=$(xpath -q -e '//testsuite/@failures' "$xml_file" 2>/dev/null | sed 's/.*failures="\([0-9]*\)".*/\1/' || echo "0")
-              errors=$(xpath -q -e '//testsuite/@errors' "$xml_file" 2>/dev/null | sed 's/.*errors="\([0-9]*\)".*/\1/' || echo "0")
+              # xmllintを使用してセキュアにXMLを解析（testsuiteを対象とする）
+              tests=$(xmllint --xpath '//testsuite/@tests' "$xml_file" 2>/dev/null | sed 's/.*tests="\([0-9]*\)".*/\1/' || echo "0")
+              failures=$(xmllint --xpath '//testsuite/@failures' "$xml_file" 2>/dev/null | sed 's/.*failures="\([0-9]*\)".*/\1/' || echo "0")
+              errors=$(xmllint --xpath '//testsuite/@errors' "$xml_file" 2>/dev/null | sed 's/.*errors="\([0-9]*\)".*/\1/' || echo "0")
               
               # 数値検証
               if [[ "$tests" =~ ^[0-9]+$ ]]; then
@@ -68,8 +73,8 @@ jobs:
           
           # カバレッジ率の抽出（セキュアなXMLパース）
           if [ -f "build/reports/jacoco/jacocoRootReport/jacocoRootReport.xml" ]; then
-            covered=$(xpath -q -e '//counter[@type="INSTRUCTION"]/@covered' build/reports/jacoco/jacocoRootReport/jacocoRootReport.xml 2>/dev/null | sed 's/.*covered="\([0-9]*\)".*/\1/' || echo "0")
-            missed=$(xpath -q -e '//counter[@type="INSTRUCTION"]/@missed' build/reports/jacoco/jacocoRootReport/jacocoRootReport.xml 2>/dev/null | sed 's/.*missed="\([0-9]*\)".*/\1/' || echo "0")
+            covered=$(xmllint --xpath '//counter[@type="INSTRUCTION"]/@covered' build/reports/jacoco/jacocoRootReport/jacocoRootReport.xml 2>/dev/null | sed 's/.*covered="\([0-9]*\)".*/\1/' || echo "0")
+            missed=$(xmllint --xpath '//counter[@type="INSTRUCTION"]/@missed' build/reports/jacoco/jacocoRootReport/jacocoRootReport.xml 2>/dev/null | sed 's/.*missed="\([0-9]*\)".*/\1/' || echo "0")
             
             # 数値検証とカバレッジ計算
             if [[ "$covered" =~ ^[0-9]+$ ]] && [[ "$missed" =~ ^[0-9]+$ ]]; then
