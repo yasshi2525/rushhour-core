@@ -73,14 +73,14 @@ jobs:
           
           # カバレッジ率の抽出（セキュアなXMLパース）
           if [ -f "build/reports/jacoco/jacocoRootReport/jacocoRootReport.xml" ]; then
-            covered=$(xmllint --xpath '//counter[@type="INSTRUCTION"]/@covered' build/reports/jacoco/jacocoRootReport/jacocoRootReport.xml 2>/dev/null | sed 's/.*covered="\([0-9]*\)".*/\1/' || echo "0")
-            missed=$(xmllint --xpath '//counter[@type="INSTRUCTION"]/@missed' build/reports/jacoco/jacocoRootReport/jacocoRootReport.xml 2>/dev/null | sed 's/.*missed="\([0-9]*\)".*/\1/' || echo "0")
+            covered=$(xmllint --xpath '/report/counter[@type="INSTRUCTION"]/@covered' build/reports/jacoco/jacocoRootReport/jacocoRootReport.xml 2>/dev/null | sed 's/.*covered="\([0-9]*\)".*/\1/' || echo "0")
+            missed=$(xmllint --xpath '/report/counter[@type="INSTRUCTION"]/@missed' build/reports/jacoco/jacocoRootReport/jacocoRootReport.xml 2>/dev/null | sed 's/.*missed="\([0-9]*\)".*/\1/' || echo "0")
             
             # 数値検証とカバレッジ計算
             if [[ "$covered" =~ ^[0-9]+$ ]] && [[ "$missed" =~ ^[0-9]+$ ]]; then
               total=$((covered + missed))
               if [ $total -gt 0 ]; then
-                COVERAGE=$(echo "scale=1; $covered * 100 / $total" | bc -l)
+                COVERAGE=$(awk "BEGIN {printf \"%.1f\", $covered * 100 / $total}")
               else
                 COVERAGE=0
               fi
