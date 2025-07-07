@@ -6,7 +6,8 @@ import {
   addComponent,
   IWorld,
   Types,
-  defineQuery
+  defineQuery,
+  Component
 } from 'bitecs'
 
 // コンポーネント定義
@@ -193,12 +194,13 @@ export function ECSProvider({ children }: ECSProviderProps) {
   
   const addComponentToEntity = useCallback((eid: number, component: unknown, data: Record<string, unknown>) => {
     if (!worldRef.current) throw new Error('World not initialized')
-    addComponent(worldRef.current, component, eid)
+    addComponent(worldRef.current, component as Component, eid)
     
     // データの設定
     Object.keys(data).forEach(key => {
-      if (component[key] !== undefined) {
-        component[key][eid] = data[key]
+      const comp = component as Record<string, any>
+      if (comp[key] !== undefined) {
+        comp[key][eid] = data[key]
       }
     })
   }, [])
