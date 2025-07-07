@@ -307,3 +307,52 @@ task codeCoverageReport(type: JacocoReport) {
 **品質ゲートの設定**では、ゲーム開発特有の要件を考慮し、3Dグラフィックスや物理エンジンのコードには通常より緩い複雑性しきい値を設定します。一方で、セキュリティと信頼性の基準は厳格に維持します。
 
 この包括的なアプローチにより、鉄道シミュレーションゲームのような複雑なモノレポプロジェクトでも、効果的なコード品質管理が実現できます。ファイル重複問題を回避しながら、各モジュールの特性に応じた最適な分析設定を適用することで、開発効率と品質の両立が可能になります。
+
+## 実運用で判明した問題と対策記録
+
+### Gradle Problems Reportによるcontext差異警告問題（2025年7月）
+
+**問題の詳細**：
+SonarQubeタスク実行時にGradle Problems Reportで以下の警告が継続的に発生することが判明：
+
+```
+Resolution of the configuration :packages:compileClasspath was attempted from a context different than the project context
+Resolution of the configuration :packages:testCompileClasspath was attempted from a context different than the project context
+Resolution of the configuration :packages:shared-models:testCompileClasspath was attempted from a context different than the project context
+Resolution of the configuration :apps:compileClasspath was attempted from a context different than the project context
+Resolution of the configuration :apps:testCompileClasspath was attempted from a context different than the project context
+```
+
+**技術的原因**：
+- SonarQubeプラグインがマルチプロジェクト環境で各サブプロジェクトの依存関係情報を収集する際に、適切でないコンテキストから設定を解決しようとしている
+- Gradle 8.13の非推奨動作であり、Gradle 9.0では完全にエラーになる予定
+- 根本的にはSonarQubeプラグインのマルチプロジェクト設定解決メカニズムの制約
+
+**検討した解決策と結果**：
+1. **中央集権的設定の試行**：ルートプロジェクトでの統合管理を試みたが、ルートプロジェクトとサブプロジェクトのファイル読み込みが干渉し、二重インデックス問題が再発
+2. **sonar.modules設定**：Java プロジェクトのみを明示的に指定したが、TypeScript プロジェクトとの連携で問題が発生
+
+**採用した対策**：
+**この警告を本プロジェクトでは問題として扱わない方針を決定**
+
+**対策の根拠**：
+1. **品質への影響なし**：この警告はSonarQube解析の品質や精度には影響しない
+2. **過去の経験**：中央集権的な設定変更により二重インデックス問題が発生した経緯がある
+3. **アーキテクチャ原則**：意図的にサブプロジェクトでファイル読み込みを個別設定するアーキテクチャを採用
+4. **実用性優先**：警告は表示されるが、実際のSonarQube解析は正常に動作する
+
+**記録日**：2025年7月7日
+**対応者**：開発チーム + Claude Code
+**今後の方針**：
+- Gradle 9.0リリース時に再評価が必要
+- SonarQubeプラグインの更新で根本解決の可能性を継続監視
+- 品質ゲートへの影響がないことを定期確認
+
+### 推奨される監視項目
+
+実運用では以下の項目を定期的に監視することを推奨：
+
+1. **SonarQube解析の成功率**：警告があっても解析は完了することを確認
+2. **品質ゲートの状態**：context警告が品質評価に影響しないことを確認
+3. **Gradleバージョン更新時の影響**：新バージョンでの動作確認
+4. **SonarQubeプラグイン更新**：新バージョンでの根本解決可能性を確認
