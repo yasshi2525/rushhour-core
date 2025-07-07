@@ -1,8 +1,10 @@
 import '@testing-library/jest-dom'
 import { vi } from 'vitest'
 
+// グローバル型定義を削除し、直接実装
+
 // Three.jsのモック
-global.ResizeObserver = class ResizeObserver {
+globalThis.ResizeObserver = class ResizeObserver {
   observe() {}
   unobserve() {}
   disconnect() {}
@@ -18,21 +20,24 @@ const mockWebGLContext = {
   getShaderPrecisionFormat: () => ({ precision: 1, rangeMin: 1, rangeMax: 1 }),
 }
 
-global.HTMLCanvasElement.prototype.getContext = vi.fn(() => mockWebGLContext)
+globalThis.HTMLCanvasElement.prototype.getContext = vi.fn(() => mockWebGLContext) as any
 
 // WebSocket関連のモック
-global.WebSocket = class WebSocket {
-  onopen = null
-  onclose = null
-  onmessage = null
-  onerror = null
+;(globalThis as any).WebSocket = class WebSocket {
+  onopen: ((event: Event) => void) | null = null
+  onclose: ((event: CloseEvent) => void) | null = null
+  onmessage: ((event: MessageEvent) => void) | null = null
+  onerror: ((event: Event) => void) | null = null
   
-  constructor(url: string) {
+  constructor(_url: string) {
     setTimeout(() => {
-      if (this.onopen) this.onopen({} as Event)
+      const openHandler = this.onopen
+      if (openHandler) {
+        openHandler({} as Event)
+      }
     }, 0)
   }
   
-  send() {}
-  close() {}
-} as any
+  send(_data: string | ArrayBuffer | Blob) {}
+  close(_code?: number, _reason?: string) {}
+}

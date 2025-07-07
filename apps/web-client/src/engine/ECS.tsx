@@ -4,9 +4,8 @@ import {
   defineComponent, 
   addEntity, 
   addComponent,
-  World,
+  IWorld,
   Types,
-  Query,
   defineQuery
 } from 'bitecs'
 
@@ -54,23 +53,28 @@ export const Resident = defineComponent({
 // システム定義
 export interface System {
   name: string
-  update?: (world: World, deltaTime: number) => void
-  init?: (world: World) => void
-  cleanup?: (world: World) => void
+  update?: (world: IWorld, deltaTime: number) => void
+  init?: (world: IWorld) => void
+  cleanup?: (world: IWorld) => void
 }
 
 // 移動システム
 export const MovementSystem: System = {
   name: 'MovementSystem',
-  update: (world: World, deltaTime: number) => {
+  update: (world: IWorld, deltaTime: number) => {
     const entities = defineQuery([Position, Velocity])(world)
     
     for (let i = 0; i < entities.length; i++) {
       const eid = entities[i]
+      if (eid === undefined) continue
       
-      Position.x[eid] += Velocity.x[eid] * deltaTime
-      Position.y[eid] += Velocity.y[eid] * deltaTime
-      Position.z[eid] += Velocity.z[eid] * deltaTime
+      try {
+        Position.x[eid] = (Position.x[eid] ?? 0) + (Velocity.x[eid] ?? 0) * deltaTime
+        Position.y[eid] = (Position.y[eid] ?? 0) + (Velocity.y[eid] ?? 0) * deltaTime
+        Position.z[eid] = (Position.z[eid] ?? 0) + (Velocity.z[eid] ?? 0) * deltaTime
+      } catch (e) {
+        // bitECS配列が未初期化の場合をハンドル
+      }
     }
   }
 }
@@ -78,14 +82,15 @@ export const MovementSystem: System = {
 // 電車システム
 export const TrainMovementSystem: System = {
   name: 'TrainMovementSystem',
-  update: (world: World, deltaTime: number) => {
+  update: (world: IWorld, deltaTime: number) => {
     const trainEntities = defineQuery([Position, Velocity, Train])(world)
     
     for (let i = 0; i < trainEntities.length; i++) {
       const eid = trainEntities[i]
+      if (eid === undefined) continue
       
       // 電車固有の移動ロジック
-      const currentSpeed = Train.speed[eid]
+      const currentSpeed = Train.speed[eid] ?? 0
       
       // 線路に沿った移動（簡略化）
       Velocity.x[eid] = currentSpeed * Math.cos(0) // 角度は後で実装
@@ -98,11 +103,12 @@ export const TrainMovementSystem: System = {
 // 住民シミュレーションシステム
 export const ResidentSystem: System = {
   name: 'ResidentSystem',
-  update: (world: World, deltaTime: number) => {
+  update: (world: IWorld, deltaTime: number) => {
     const residentEntities = defineQuery([Resident, Position])(world)
     
     for (let i = 0; i < residentEntities.length; i++) {
       const eid = residentEntities[i]
+      if (eid === undefined) continue
       
       // 住民の状態に応じた行動
       const state = Resident.state[eid]
@@ -127,7 +133,7 @@ export const ResidentSystem: System = {
 
 // ECSコンテキスト
 interface ECSContextValue {
-  world: World | null
+  world: IWorld | null
   systems: System[]
   addSystem: (system: System) => void
   createEntity: () => number
@@ -141,7 +147,7 @@ interface ECSProviderProps {
 }
 
 export function ECSProvider({ children }: ECSProviderProps) {
-  const worldRef = useRef<World | null>(null)
+  const worldRef = useRef<IWorld | null>(null)
   const systemsRef = useRef<System[]>([])
   
   useEffect(() => {

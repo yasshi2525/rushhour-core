@@ -46,11 +46,11 @@ export function StationSystem() {
           key={eid}
           entityId={eid}
           position={[
-            Position.x[eid],
-            Position.y[eid],
-            Position.z[eid]
+            Position.x[eid] ?? 0,
+            Position.y[eid] ?? 0,
+            Position.z[eid] ?? 0
           ]}
-          waitingPassengers={Station.waitingPassengers[eid]}
+          waitingPassengers={Station.waitingPassengers[eid] ?? 0}
         />
       ))}
     </group>

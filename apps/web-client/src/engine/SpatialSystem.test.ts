@@ -24,7 +24,7 @@ describe('SpatialHashGrid', () => {
     
     const results = grid.queryPoint(5, 5)
     expect(results).toHaveLength(1)
-    expect(results[0].id).toBe(1)
+    expect(results[0]?.id).toBe(1)
   })
   
   it('should find objects in range', () => {
@@ -32,7 +32,7 @@ describe('SpatialHashGrid', () => {
     
     const results = grid.queryRange(0, 0, 20, 20)
     expect(results).toHaveLength(1)
-    expect(results[0].id).toBe(1)
+    expect(results[0]?.id).toBe(1)
   })
   
   it('should remove objects', () => {
@@ -81,7 +81,7 @@ describe('SpatialRTree', () => {
     
     const results = tree.search(0, 0, 20, 20)
     expect(results).toHaveLength(1)
-    expect(results[0].id).toBe(1)
+    expect(results[0]?.id).toBe(1)
   })
   
   it('should search by point', () => {
@@ -166,7 +166,7 @@ describe('SpatialManager', () => {
     
     const collisions = manager.checkCollisions(train)
     expect(collisions).toHaveLength(1)
-    expect(collisions[0].id).toBe(3)
+    expect(collisions[0]?.id).toBe(3)
   })
   
   it('should provide statistics', () => {

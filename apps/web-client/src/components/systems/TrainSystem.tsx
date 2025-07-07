@@ -34,9 +34,9 @@ export function TrainSystem() {
           key={eid}
           entityId={eid}
           position={[
-            Position.x[eid],
-            Position.y[eid],
-            Position.z[eid]
+            Position.x[eid] ?? 0,
+            Position.y[eid] ?? 0,
+            Position.z[eid] ?? 0
           ]}
         />
       ))}

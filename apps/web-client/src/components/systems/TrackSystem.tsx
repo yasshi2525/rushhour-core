@@ -57,13 +57,13 @@ export function TrackSystem() {
           key={eid}
           entityId={eid}
           position={[
-            Position.x[eid],
-            Position.y[eid],
-            Position.z[eid]
+            Position.x[eid] ?? 0,
+            Position.y[eid] ?? 0,
+            Position.z[eid] ?? 0
           ]}
-          length={Track.length[eid]}
-          fromStationId={Track.fromStationId[eid]}
-          toStationId={Track.toStationId[eid]}
+          length={Track.length[eid] ?? 1}
+          fromStationId={Track.fromStationId[eid] ?? 0}
+          toStationId={Track.toStationId[eid] ?? 0}
         />
       ))}
     </group>

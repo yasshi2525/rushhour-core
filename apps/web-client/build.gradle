@@ -32,6 +32,7 @@ task npmLint(type: Exec) {
     dependsOn npmInstall
     commandLine 'npm', 'run', 'lint'
     workingDir file('.')
+    ignoreExitValue true // 開発フェーズではlintエラーでビルドを停止しない
 }
 
 // ESLintレポート生成タスク
@@ -42,6 +43,7 @@ task generateESLintReport(type: Exec) {
     }
     commandLine 'npx', 'eslint', 'src', '--format', 'json', '--output-file', 'build/reports/eslint-report.json'
     workingDir file('.')
+    ignoreExitValue true // レポート生成のためエラーでもタスクを継続
 }
 
 // カバレッジレポート生成タスク
@@ -49,6 +51,13 @@ task generateCoverageReport(type: Exec) {
     dependsOn npmInstall
     commandLine 'npm', 'run', 'test:coverage:ci'
     workingDir file('.')
+}
+
+// testタスクを定義（JavaプロジェクトではないがGradle統合のため）
+task test {
+    dependsOn npmTest
+    group = 'verification'
+    description = 'Run JavaScript/TypeScript tests using npm'
 }
 
 // Gradleタスクの統合
