@@ -32,7 +32,6 @@ export function TrainSystem() {
       {world && trainQuery.map((eid) => (
         <TrainEntity 
           key={eid}
-          entityId={eid}
           position={[
             Position.x[eid] ?? 0,
             Position.y[eid] ?? 0,
@@ -45,11 +44,10 @@ export function TrainSystem() {
 }
 
 interface TrainEntityProps {
-  entityId: number
-  position: [number, number, number]
+  readonly position: readonly [number, number, number]
 }
 
-function TrainEntity({ entityId, position }: TrainEntityProps) {
+function TrainEntity({ position }: TrainEntityProps) {
   const meshRef = useRef<THREE.Mesh>(null)
   
   useFrame(() => {

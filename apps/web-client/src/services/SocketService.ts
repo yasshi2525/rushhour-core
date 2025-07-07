@@ -2,7 +2,7 @@ import { io, Socket } from 'socket.io-client'
 
 export interface GameEvent {
   type: string
-  data: any
+  data: Record<string, unknown>
   timestamp: number
 }
 
@@ -115,7 +115,7 @@ export class SocketService {
   }
   
   // メッセージ送信メソッド
-  emit(event: string, data?: any): void {
+  emit(event: string, data?: Record<string, unknown>): void {
     if (this.socket && this.socket.connected) {
       this.socket.emit(event, data)
     } else {
@@ -124,14 +124,14 @@ export class SocketService {
   }
   
   // イベントリスナー登録
-  on(event: string, callback: (...args: any[]) => void): void {
+  on(event: string, callback: (...args: unknown[]) => void): void {
     if (this.socket) {
       this.socket.on(event, callback)
     }
   }
   
   // イベントリスナー削除
-  off(event: string, callback?: (...args: any[]) => void): void {
+  off(event: string, callback?: (...args: unknown[]) => void): void {
     if (this.socket) {
       this.socket.off(event, callback)
     }

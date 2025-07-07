@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useRef, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useRef, ReactNode, useMemo, useCallback } from 'react'
 import { 
   createWorld, 
   defineComponent, 
@@ -64,8 +64,7 @@ export const MovementSystem: System = {
   update: (world: IWorld, deltaTime: number) => {
     const entities = defineQuery([Position, Velocity])(world)
     
-    for (let i = 0; i < entities.length; i++) {
-      const eid = entities[i]
+    for (const eid of entities) {
       if (eid === undefined) continue
       
       try {
@@ -74,6 +73,7 @@ export const MovementSystem: System = {
         Position.z[eid] = (Position.z[eid] ?? 0) + (Velocity.z[eid] ?? 0) * deltaTime
       } catch (e) {
         // bitECS配列が未初期化の場合をハンドル
+        console.warn('ECS component array not initialized:', e)
       }
     }
   }
@@ -82,11 +82,10 @@ export const MovementSystem: System = {
 // 電車システム
 export const TrainMovementSystem: System = {
   name: 'TrainMovementSystem',
-  update: (world: IWorld, deltaTime: number) => {
+  update: (world: IWorld, _deltaTime: number) => {
     const trainEntities = defineQuery([Position, Velocity, Train])(world)
     
-    for (let i = 0; i < trainEntities.length; i++) {
-      const eid = trainEntities[i]
+    for (const eid of trainEntities) {
       if (eid === undefined) continue
       
       // 電車固有の移動ロジック
@@ -103,11 +102,10 @@ export const TrainMovementSystem: System = {
 // 住民シミュレーションシステム
 export const ResidentSystem: System = {
   name: 'ResidentSystem',
-  update: (world: IWorld, deltaTime: number) => {
+  update: (world: IWorld, _deltaTime: number) => {
     const residentEntities = defineQuery([Resident, Position])(world)
     
-    for (let i = 0; i < residentEntities.length; i++) {
-      const eid = residentEntities[i]
+    for (const eid of residentEntities) {
       if (eid === undefined) continue
       
       // 住民の状態に応じた行動
@@ -137,13 +135,13 @@ interface ECSContextValue {
   systems: System[]
   addSystem: (system: System) => void
   createEntity: () => number
-  addComponentToEntity: (eid: number, component: any, data: any) => void
+  addComponentToEntity: (eid: number, component: unknown, data: Record<string, unknown>) => void
 }
 
 const ECSContext = createContext<ECSContextValue | null>(null)
 
 interface ECSProviderProps {
-  children: ReactNode
+  readonly children: ReactNode
 }
 
 export function ECSProvider({ children }: ECSProviderProps) {
@@ -181,19 +179,19 @@ export function ECSProvider({ children }: ECSProviderProps) {
     }
   }, [])
   
-  const addSystem = (system: System) => {
+  const addSystem = useCallback((system: System) => {
     if (worldRef.current && system.init) {
       system.init(worldRef.current)
     }
     systemsRef.current.push(system)
-  }
+  }, [])
   
-  const createEntity = () => {
+  const createEntity = useCallback(() => {
     if (!worldRef.current) throw new Error('World not initialized')
     return addEntity(worldRef.current)
-  }
+  }, [])
   
-  const addComponentToEntity = (eid: number, component: any, data: any) => {
+  const addComponentToEntity = useCallback((eid: number, component: unknown, data: Record<string, unknown>) => {
     if (!worldRef.current) throw new Error('World not initialized')
     addComponent(worldRef.current, component, eid)
     
@@ -203,15 +201,15 @@ export function ECSProvider({ children }: ECSProviderProps) {
         component[key][eid] = data[key]
       }
     })
-  }
+  }, [])
   
-  const contextValue: ECSContextValue = {
+  const contextValue: ECSContextValue = useMemo(() => ({
     world: worldRef.current,
     systems: systemsRef.current,
     addSystem,
     createEntity,
     addComponentToEntity,
-  }
+  }), [addSystem, createEntity, addComponentToEntity])
   
   return (
     <ECSContext.Provider value={contextValue}>

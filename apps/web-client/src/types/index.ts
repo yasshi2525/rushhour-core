@@ -130,7 +130,7 @@ export interface GameEvent {
   id: string
   type: 'train-arrived' | 'train-departed' | 'station-full' | 'delay' | 'accident'
   timestamp: number
-  data: any
+  data: Record<string, unknown>
   severity: 'info' | 'warning' | 'error'
 }
 
@@ -190,7 +190,7 @@ export interface APIResponse<T> {
 // WebSocket メッセージの型
 export interface SocketMessage {
   type: string
-  data: any
+  data: Record<string, unknown>
   timestamp: number
   senderId?: string
 }

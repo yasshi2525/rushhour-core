@@ -20,10 +20,10 @@ const mockWebGLContext = {
   getShaderPrecisionFormat: () => ({ precision: 1, rangeMin: 1, rangeMax: 1 }),
 }
 
-globalThis.HTMLCanvasElement.prototype.getContext = vi.fn(() => mockWebGLContext) as any
+globalThis.HTMLCanvasElement.prototype.getContext = vi.fn(() => mockWebGLContext) as unknown as (contextId: string) => RenderingContext | null
 
 // WebSocket関連のモック
-;(globalThis as any).WebSocket = class WebSocket {
+;(globalThis as unknown as { WebSocket: typeof WebSocket }).WebSocket = class WebSocket {
   onopen: ((event: Event) => void) | null = null
   onclose: ((event: CloseEvent) => void) | null = null
   onmessage: ((event: MessageEvent) => void) | null = null

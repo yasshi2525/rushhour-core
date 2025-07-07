@@ -55,7 +55,6 @@ export function TrackSystem() {
       {world && trackQuery.map((eid) => (
         <TrackEntity 
           key={eid}
-          entityId={eid}
           position={[
             Position.x[eid] ?? 0,
             Position.y[eid] ?? 0,
@@ -71,14 +70,13 @@ export function TrackSystem() {
 }
 
 interface TrackEntityProps {
-  entityId: number
-  position: [number, number, number]
-  length: number
-  fromStationId: number
-  toStationId: number
+  readonly position: readonly [number, number, number]
+  readonly length: number
+  readonly fromStationId: number
+  readonly toStationId: number
 }
 
-function TrackEntity({ entityId, position, length, fromStationId, toStationId }: TrackEntityProps) {
+function TrackEntity({ position, length, fromStationId, toStationId }: TrackEntityProps) {
   const meshRef = useRef<THREE.Mesh>(null)
   
   // 駅の位置から角度を計算（簡略化）

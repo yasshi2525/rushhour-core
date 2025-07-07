@@ -128,7 +128,8 @@ sonar {
     }
 }
 
-// SonarQubeタスクの依存関係設定 - Java専用に簡素化
+// SonarQubeタスクの依存関係設定 - JavaとTypeScript統合
 tasks.named('sonar') {
     dependsOn 'jacocoRootReport'
+    dependsOn ':apps:web-client:generateESLintReport'
 }

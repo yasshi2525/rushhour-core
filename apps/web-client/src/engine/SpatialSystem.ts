@@ -9,7 +9,7 @@ export interface SpatialObject {
   height: number
   depth: number
   type: 'train' | 'station' | 'track' | 'resident'
-  data?: any
+  data?: Record<string, unknown>
 }
 
 interface RBushItem {

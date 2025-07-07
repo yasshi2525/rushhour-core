@@ -44,7 +44,7 @@ export function StationSystem() {
       {world && stationQuery.map((eid) => (
         <StationEntity 
           key={eid}
-          entityId={eid}
+          stationId={Station.id[eid] ?? eid}
           position={[
             Position.x[eid] ?? 0,
             Position.y[eid] ?? 0,
@@ -58,12 +58,12 @@ export function StationSystem() {
 }
 
 interface StationEntityProps {
-  entityId: number
-  position: [number, number, number]
-  waitingPassengers: number
+  readonly stationId: number
+  readonly position: readonly [number, number, number]
+  readonly waitingPassengers: number
 }
 
-function StationEntity({ entityId, position, waitingPassengers }: StationEntityProps) {
+function StationEntity({ stationId, position, waitingPassengers }: StationEntityProps) {
   const meshRef = useRef<THREE.Mesh>(null)
   
   useFrame(() => {
@@ -102,7 +102,7 @@ function StationEntity({ entityId, position, waitingPassengers }: StationEntityP
         anchorX="center"
         anchorY="middle"
       >
-        Station {entityId}
+        Station {stationId}
       </Text>
       
       {/* 待機乗客数 */}

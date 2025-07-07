@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, ReactNode } from 'react'
+import React, { createContext, useContext, useEffect, useMemo, ReactNode } from 'react'
 import { useGameStore } from './gameStore'
 import { SocketService } from '../services/SocketService'
 import { ECSProvider } from '../engine/ECS'
@@ -15,7 +15,7 @@ interface GameProviderProps {
 
 export function GameProvider({ children }: GameProviderProps) {
   const setConnectionStatus = useGameStore(state => state.setConnectionStatus)
-  const socketService = new SocketService()
+  const socketService = useMemo(() => new SocketService(), [])
   
   useEffect(() => {
     // WebSocket接続の初期化
@@ -37,7 +37,7 @@ export function GameProvider({ children }: GameProviderProps) {
     return () => {
       socketService.disconnect()
     }
-  }, [setConnectionStatus])
+  }, [setConnectionStatus, socketService])
   
   const contextValue: GameContextValue = {
     socketService,
